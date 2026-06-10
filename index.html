@@ -118,6 +118,7 @@
   .ai-loading{display:flex;align-items:center;gap:10px;padding:16px;background:var(--bg2);border-radius:var(--radius);margin-bottom:10px}
   .ai-spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
   @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
   .ai-loading-text{font-size:13px;color:var(--text2)}
 
   /* Buttons */
@@ -772,15 +773,16 @@ function loadBestScores(){
   return p[progressKey()]?.bestScores || {};
 }
 
-// Save bestScores + update streak
+// Save bestScores + update streak + lastSentence
 function saveCurrentProgress(){
   const p = loadProgress();
   const key = progressKey();
-  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  const today = new Date().toISOString().slice(0,10);
 
   if(!p[key]) p[key] = {};
   p[key].bestScores = bestScores;
   p[key].lastPracticed = today;
+  p[key].lastSentence = current; // remember which sentence we're on
 
   // Streak logic
   const lastDay = p.lastPracticeDay || '';
@@ -788,10 +790,8 @@ function saveCurrentProgress(){
   if(lastDay === today){
     // Already practiced today, keep streak
   } else if(lastDay === yesterday){
-    // Practiced yesterday → increment streak
     p.streak = (p.streak || 0) + 1;
-  } else if(lastDay !== today){
-    // Missed a day → reset streak
+  } else {
     p.streak = 1;
   }
   p.lastPracticeDay = today;
@@ -812,26 +812,43 @@ function getStreak(){
 function startPractice(){
   if(!activeLang)return;
   if(!geminiKey){ openKeyModal(); return; }
-  current=0; scores={};
-  // Load saved best scores for this lang+set
-  bestScores = loadBestScores();
+
+  // Load saved progress for this lang+set
+  const p = loadProgress();
+  const key = `${activeLang}-${activeSet}`;
+  const saved = p[key] || {};
+  bestScores = saved.bestScores || {};
   streak = getStreak();
-  startTime=Date.now();
+  startTime = Date.now();
+
+  // Restore last position (but not if all sentences already completed)
+  const total = DB[activeLang]?.sets?.[activeSet]?.sentences?.length || 0;
+  const savedSentence = saved.lastSentence ?? 0;
+  const completedCount = Object.keys(bestScores).length;
+  const allDone = completedCount >= total;
+  // If all done → start from beginning. Otherwise restore position.
+  current = allDone ? 0 : savedSentence;
+  scores = {};
 
   const prevLang = document.getElementById('lang-pill').textContent;
   if(prevLang !== DB[activeLang]?.pill){
     Object.keys(ttsCache).forEach(k=>{ if(!k.startsWith(activeLang)){ URL.revokeObjectURL(ttsCache[k]); delete ttsCache[k]; } });
     Object.keys(imgCache).forEach(k=>{ if(!k.startsWith(activeLang+'-')) delete imgCache[k]; });
   }
-  document.getElementById('lang-pill').textContent=DB[activeLang].pill;
+  document.getElementById('lang-pill').textContent = DB[activeLang].pill;
 
-  // Update streak display
+  // Streak display
   const streakEl = document.getElementById('streak-display');
   if(streakEl) streakEl.textContent = streak > 0 ? `🔥 ${streak} ${t('streakLabel')}` : '';
 
   applyI18n();
   loadSentence();
   showScreen('screen-practice');
+
+  // Show resume banner if continuing from saved position
+  if(!allDone && current > 0){
+    showResumeBanner(current, total, completedCount);
+  }
 }
 
 function goBack(){
@@ -869,15 +886,17 @@ function openList(){
   list.innerHTML='';
   set.sentences.forEach((s,i)=>{
     const best=bestScores[i];
+    const isCurrent = i===current;
+    const isDone = best!==undefined;
     let scoreHtml='';
-    if(best!==undefined){
+    if(isDone){
       const cls=best>=85?'chip-good':best>=60?'chip-ok':'chip-bad';
       scoreHtml=`<span class="modal-item-score ${cls}">${best}分</span>`;
     }
     const item=document.createElement('div');
-    item.className='modal-item'+(i===current?' active-sent':'');
+    item.className='modal-item'+(isCurrent?' active-sent':'');
     item.innerHTML=`
-      <div class="modal-item-num">${i+1}</div>
+      <div class="modal-item-num" style="${isDone?'background:var(--green-bg);color:var(--green-text);font-size:14px':''}">${isDone?'✓':i+1}</div>
       <div class="modal-item-text">
         <div class="modal-item-main">${s.text}</div>
         <div class="modal-item-sub">${s.hint}</div>
@@ -1274,7 +1293,10 @@ async function startRecording(){
     mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) audioChunks.push(e.data); };
     mediaRecorder.onstop=()=>{
       stream.getTracks().forEach(t=>t.stop());
-      if(!_cancelRecording) processAudio();
+      if(!_cancelRecording){
+        // Small delay to ensure all chunks are flushed before building Blob
+        setTimeout(processAudio, 150);
+      }
     };
     mediaRecorder.start(100);
     isRecording=true; _cancelRecording=false;
@@ -1301,7 +1323,7 @@ function stopRecording(cancel=false){
     setRecIcon('mic');
     if(!cancel){
       document.getElementById('rec-hint').textContent = t('processing');
-      document.getElementById('rec-sub').textContent='';
+      document.getElementById('rec-sub').textContent = '⏳';
     }
   }
 }
