@@ -1644,7 +1644,9 @@ async function scoreWithAzure(targetSentence, words, wavBlob, lang){
     Granularity:     'Word',
     EnableMiscue:    true
   };
-  const paHeader = btoa(JSON.stringify(paConfig));
+  // base64 encode the PA config — must handle Unicode (Japanese/Chinese/etc.)
+  const paJson = JSON.stringify(paConfig);
+  const paHeader = btoa(unescape(encodeURIComponent(paJson)));
 
   const res = await fetch(endpoint, {
     method:  'POST',
