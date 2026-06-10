@@ -22,7 +22,7 @@ Record yourself reading example sentences, get instant feedback from Gemini AI, 
 
 ## 🚀 Live Demo
 
-**[pronunciation-coach.chnlueyea.workers.dev](https://pronunciation-coach.chnlueyea.workers.dev)**
+**[pronunciation-coach-ceh.pages.dev](https://pronunciation-coach-ceh.pages.dev)**
 
 ---
 
