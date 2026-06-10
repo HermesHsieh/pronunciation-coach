@@ -535,7 +535,7 @@ let current=0, scores={}, bestScores={};
 let mediaRecorder=null, audioChunks=[], isRecording=false;
 let startTime=Date.now(), streak=3;
 let geminiKey='';
-let azureKey='', azureRegion='eastasia';
+let azureKey='', azureRegion='pronunciation-coach-speech';
 
 // Central accessor — all code uses this instead of DB[activeLang].sentences
 function getLangSet(){ return DB[activeLang]?.sets?.[activeSet] || DB[activeLang]?.sets?.free; }
@@ -632,7 +632,7 @@ function t(key, ...args){
 function loadKey(){
   geminiKey    = localStorage.getItem('gemini_key')||'';
   azureKey     = localStorage.getItem('azure_key')||'';
-  azureRegion  = localStorage.getItem('azure_region')||'eastasia';
+  azureRegion  = localStorage.getItem('azure_region')||'pronunciation-coach-speech';
 }
 function saveKey(){
   const ak = document.getElementById('azure-key-input').value.trim();
@@ -1635,17 +1635,24 @@ const AZURE_LANG_MAP = {zh:'zh-CN', en:'en-US', ja:'ja-JP', de:'de-DE', fr:'fr-F
 
 async function scoreWithAzure(targetSentence, words, wavBlob, lang){
   const azureLang = AZURE_LANG_MAP[lang] || 'en-US';
-  const endpoint  = `https://${azureRegion}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1?language=${azureLang}&format=detailed`;
+  // Use resource-name based endpoint (official format per Azure docs)
+  // azureRegion stores resource name OR region - handle both
+  const host = azureRegion.includes('.')
+    ? azureRegion  // already a full hostname
+    : azureRegion.match(/^[a-z]+asia$|^[a-z]+us$|^[a-z]+europe$|^[a-z]+india$/)
+      ? `${azureRegion}.stt.speech.microsoft.com`  // old regional format
+      : `${azureRegion}.cognitiveservices.azure.com`; // new resource-name format
+  const endpoint = `https://${host}/stt/speech/recognition/conversation/cognitiveservices/v1?language=${azureLang}&format=detailed`;
 
-  // Build pronunciation assessment config header (base64 encoded JSON)
   const paConfig = {
-    ReferenceText:   targetSentence,
-    GradingSystem:   'HundredMark',
-    Granularity:     'Word',
-    EnableMiscue:    true
+    ReferenceText:           targetSentence,
+    GradingSystem:           'HundredMark',
+    Granularity:             'Word',
+    Dimension:               'Comprehensive',
+    EnableMiscue:            true,
+    EnableProsodyAssessment: 'True'
   };
-  // Correct base64: encode UTF-8 bytes directly (not URL-encoded)
-  const paJson = JSON.stringify(paConfig);
+  const paJson    = JSON.stringify(paConfig);
   const utf8Bytes = new TextEncoder().encode(paJson);
   let binary = '';
   utf8Bytes.forEach(b => binary += String.fromCharCode(b));
@@ -1854,13 +1861,9 @@ document.addEventListener('click', e => {
       <div style="font-size:13px;font-weight:600;color:var(--text2)">🎤 Azure Speech（發音評分）</div>
       <input id="azure-key-input" type="password" placeholder="Azure Speech Key..." autocomplete="off"
         style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;outline:none">
-      <select id="azure-region-input"
+      <input id="azure-region-input" type="text" placeholder="資源名稱，例如：pronunciation-coach-speech" autocomplete="off"
         style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:14px;font-family:inherit;outline:none">
-        <option value="eastasia">East Asia（香港）</option>
-        <option value="japaneast">Japan East（東京）</option>
-        <option value="eastus">East US</option>
-        <option value="westeurope">West Europe</option>
-      </select>
+      <p style="font-size:11px;color:var(--text3);margin-top:-6px">填入你在 Azure 建立的語音服務名稱（不是 region，是資源名稱）</p>
       <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px">✨ Gemini（圖片生成 / TTS）</div>
       <input id="api-key-input" type="password" placeholder="AIza..." autocomplete="off"
         style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;outline:none">
