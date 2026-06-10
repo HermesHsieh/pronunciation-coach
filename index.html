@@ -1534,84 +1534,13 @@ function playMyRecording(btn){
 }
 
 async function scoreWithGemini(targetSentence, words, audioBase64, mimeType, lang){
-  const strictRule = {
-    zh: `⚠️ 嚴格規定：如果學生說的內容與目標句子「${targetSentence}」完全不同、或根本聽不清楚、或只說了部分，score 必須低於 30 分。不要因為學生有開口說話就給高分。`,
-    en: `⚠️ STRICT RULE: If what the student said is completely different from "${targetSentence}", or inaudible, or only partial, the score MUST be below 30. Do not give high scores just because the student said something.`,
-    ja: `⚠️ 厳格なルール：生徒が「${targetSentence}」と全く違うことを言った場合、または聞き取れない場合、または一部しか言わなかった場合、scoreは必ず30点未満にすること。何か言ったというだけで高得点を与えないこと。`,
-    de: `⚠️ STRENGE REGEL: Wenn der Schüler etwas völlig anderes als "${targetSentence}" gesagt hat, oder unverständlich war, oder nur einen Teil gesagt hat, MUSS der Score unter 30 liegen.`,
-    fr: `⚠️ RÈGLE STRICTE : Si l'élève a dit quelque chose de complètement différent de "${targetSentence}", ou si c'était inaudible, ou seulement partiel, le score DOIT être inférieur à 30.`
-  };
-
+  const wordList = words.join(',');
   const prompts = {
-    zh: `你是普通話發音老師。學生應該朗讀這句話：「${targetSentence}」
-
-${strictRule.zh}
-
-請仔細聆聽音頻，先分析再評分。只回傳 JSON，不要其他文字：
-{
-  "heard": "你聽到學生說了什麼（照實轉錄，沒聽到則填空字串）",
-  "reasoning": "先描述你聽到什麼，與目標句有何差異，再說明給分理由（50字以內）",
-  "score": 整數0-100。評分：與目標句完全一致且發音清晰=90-100；大致正確但少數錯誤=70-89；約一半正確=40-69；大部分不同=10-39；完全不同或沒聲音=0-9,
-  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
-  "feedback": "簡短建議（15字以內）"
-}
-wordResults 裡每個 status 填 good/ok/bad。`,
-
-    en: `You are an English pronunciation coach. The student should say: "${targetSentence}"
-
-${strictRule.en}
-
-Listen carefully, reason first, then score. Return only JSON:
-{
-  "heard": "verbatim transcription of what you heard (empty string if nothing heard)",
-  "reasoning": "Describe what you heard, how it differs from the target, and why you gave this score (max 30 words)",
-  "score": integer 0-100. Scoring: matches target perfectly and clearly=90-100; mostly correct minor errors=70-89; about half correct=40-69; mostly different=10-39; completely different or silent=0-9,
-  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
-  "feedback": "One short coaching tip (max 8 words)"
-}
-Fill each status with good/ok/bad.`,
-
-    ja: `あなたは日本語の発音コーチです。生徒はこの文を読む必要があります：「${targetSentence}」
-
-${strictRule.ja}
-
-音声をよく聴き、まず分析してから採点してください。JSONのみを返してください：
-{
-  "heard": "生徒が言ったことをそのまま書き起こす（何も聞こえなければ空文字）",
-  "reasoning": "何を聞いたか、目標文との違い、採点理由を述べる（30文字以内）",
-  "score": 整数0-100。採点：目標文と完全一致で明瞭=90-100；概ね正確=70-89；半分程度=40-69；大部分違う=10-39；全く違うか無音=0-9,
-  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
-  "feedback": "短いアドバイス（10文字以内）"
-}
-statusはgood/ok/badで記入。`,
-
-    de: `Du bist ein Deutschlehrer für Aussprache. Der Schüler soll diesen Satz lesen: "${targetSentence}"
-
-${strictRule.de}
-
-Höre genau zu, analysiere zuerst, dann bewerte. Antworte nur mit JSON:
-{
-  "heard": "Was du gehört hast (genaue Transkription, leer wenn nichts gehört)",
-  "reasoning": "Was gehört, Unterschied zum Ziel, Begründung der Bewertung (max 20 Wörter)",
-  "score": Ganzzahl 0-100. Bewertung: perfekte Übereinstimmung=90-100; meist korrekt=70-89; halb richtig=40-69; meist falsch=10-39; völlig anders oder still=0-9,
-  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
-  "feedback": "Kurzer Tipp (max 6 Wörter)"
-}
-Status: good/ok/bad.`,
-
-    fr: `Tu es un professeur de prononciation française. L'élève doit lire cette phrase : "${targetSentence}"
-
-${strictRule.fr}
-
-Écoute attentivement, analyse d'abord, puis évalue. Réponds uniquement en JSON :
-{
-  "heard": "Transcription exacte de ce que tu as entendu (vide si rien entendu)",
-  "reasoning": "Ce que tu as entendu, différence avec la cible, justification du score (max 20 mots)",
-  "score": entier 0-100. Critères : correspond parfaitement=90-100 ; globalement correct=70-89 ; environ la moitié=40-69 ; majoritairement différent=10-39 ; complètement différent ou silence=0-9,
-  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
-  "feedback": "Conseil court (max 6 mots)"
-}
-Statut : good/ok/bad.`
+    zh: `目標句：「${targetSentence}」。聆聽音頻，只回傳JSON（無其他文字）：{"heard":"聽到的","score":整數0-100,"words":[${words.map(()=>'good或ok或bad').join(',')}],"tip":"建議8字內"}。評分：完全正確=90-100，大致正確=70-89，一半=40-69，大部分錯=10-39，完全不同或無聲=0-9。說的和目標完全不同時score必須低於25。詞順：${words.join('、')}`,
+    en: `Target: "${targetSentence}". Listen and return only JSON: {"heard":"transcription","score":0-100,"words":[${words.map(()=>'good/ok/bad').join(',')}],"tip":"tip max 5 words"}. Scoring: perfect=90-100, mostly=70-89, half=40-69, mostly wrong=10-39, different/silent=0-9. MUST score below 25 if completely different. Words: ${words.join(', ')}`,
+    ja: `目標：「${targetSentence}」。音声を聴きJSONのみ返す：{"heard":"聞いた内容","score":整数0-100,"words":[${words.map(()=>'good/ok/bad').join(',')}],"tip":"アドバイス8文字以内"}。採点：完璧=90-100、概ね=70-89、半分=40-69、大部分違う=10-39、全違い/無音=0-9。全く違う場合score25未満必須。語順：${words.join('、')}`,
+    de: `Ziel: "${targetSentence}". Nur JSON zurückgeben: {"heard":"Transkription","score":0-100,"words":[${words.map(()=>'good/ok/bad').join(',')}],"tip":"max 4 Wörter"}. Bewertung: perfekt=90-100, meist=70-89, halb=40-69, meist falsch=10-39, anders/still=0-9. Wenn völlig anders: score unter 25. Wörter: ${words.join(', ')}`,
+    fr: `Cible: "${targetSentence}". Retourne uniquement JSON: {"heard":"transcription","score":0-100,"words":[${words.map(()=>'good/ok/bad').join(',')}],"tip":"max 4 mots"}. Notation: parfait=90-100, globalement=70-89, moitié=40-69, surtout faux=10-39, différent/silence=0-9. Si complètement différent: score sous 25. Mots: ${words.join(', ')}`
   };
 
   const res=await fetch(
@@ -1626,8 +1555,8 @@ Statut : good/ok/bad.`
         ]}],
         generationConfig:{
           temperature:0.1,
-          maxOutputTokens:1500,
-          responseMimeType:'application/json'  // force clean JSON, no markdown fences
+          maxOutputTokens:300,
+          thinkingConfig:{thinkingBudget:0}
         }
       })
     }
@@ -1639,34 +1568,37 @@ Statut : good/ok/bad.`
   const data=await res.json();
   const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
 
-  // Robust JSON extraction: strip markdown fences first, then find outermost {}
-  const stripped = raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
-  // Find the outermost complete JSON object
-  const start = stripped.indexOf('{');
-  const end = stripped.lastIndexOf('}');
-  if(start === -1 || end === -1) throw new Error('No JSON in response: '+raw.slice(0,200));
-  let jsonStr = stripped.slice(start, end+1);
+  // Strip markdown fences, extract JSON object
+  const stripped=raw.replace(/```(?:json)?/gi,'').replace(/```/g,'').trim();
+  const s=stripped.indexOf('{'), e=stripped.lastIndexOf('}');
+  if(s===-1||e===-1) throw new Error('No JSON in response: '+raw.slice(0,150));
 
-  // Safely parse — if fails, try to rescue truncated JSON by closing it
   let result;
   try {
-    result = JSON.parse(jsonStr);
-  } catch(e) {
-    // Response may be truncated — extract what we can field by field
-    const heardMatch = jsonStr.match(/"heard"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    const scoreMatch = jsonStr.match(/"score"\s*:\s*(\d+)/);
-    const reasoningMatch = jsonStr.match(/"reasoning"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    const feedbackMatch = jsonStr.match(/"feedback"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    if(!scoreMatch) throw new Error('Cannot extract score from response: '+raw.slice(0,300));
-    result = {
-      heard: heardMatch?.[1] || '',
-      score: parseInt(scoreMatch[1]),
-      reasoning: reasoningMatch?.[1] || '',
-      feedback: feedbackMatch?.[1] || '',
-      wordResults: [] // will show no word colors but at least score works
-    };
+    result=JSON.parse(stripped.slice(s,e+1));
+  } catch(err) {
+    // Truncated — rescue score
+    const sm=stripped.match(/"score"\s*:\s*(\d+)/);
+    const hm=stripped.match(/"heard"\s*:\s*"([^"]*)"/);
+    const tm=stripped.match(/"tip"\s*:\s*"([^"]*)"/);
+    if(!sm) throw new Error('Cannot parse: '+raw.slice(0,150));
+    result={heard:hm?.[1]||'',score:parseInt(sm[1]),words:[],tip:tm?.[1]||''};
   }
-  return result;
+
+  // Normalise response to internal format
+  const wordResults=(result.words||[]).map((status,i)=>({
+    word:words[i]||'',
+    status:['good','ok','bad'].includes(status)?status:'ok'
+  }));
+  // Pad missing words
+  while(wordResults.length<words.length) wordResults.push({word:words[wordResults.length],status:'ok'});
+
+  return {
+    heard:       result.heard||'',
+    score:       typeof result.score==='number'?result.score:0,
+    wordResults: wordResults,
+    feedback:    result.tip||result.feedback||''
+  };
 }
 
 function blobToBase64(blob){
