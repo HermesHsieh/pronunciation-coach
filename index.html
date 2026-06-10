@@ -71,7 +71,10 @@
 
   /* Sentence card */
   .sentence-card{background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);padding:22px 20px 18px;margin-bottom:14px}
-  .sentence-text{font-size:24px;font-weight:600;line-height:1.5;color:var(--text);margin-bottom:8px}
+  .sentence-text{font-size:var(--sent-font-size,24px);font-weight:600;line-height:1.5;color:var(--text);margin-bottom:8px}
+  .settings-btn{font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:inherit;transition:all .15s}
+  .settings-btn:active{transform:scale(.95)}
+  .settings-btn.active-settings{background:var(--blue);color:#fff;border-color:var(--blue)}
   .pinyin{font-size:14px;color:var(--text2);margin-bottom:5px;line-height:1.6;min-height:20px}
   ruby{display:inline-flex;flex-direction:column-reverse;align-items:center;line-height:1}
   rt{font-size:10px;color:var(--text3);line-height:1.2;text-align:center}
@@ -259,16 +262,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       聽範例發音
     </button>
-    <div id="speed-row" style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--text3);flex-shrink:0">速率</span>
-      <div style="display:flex;gap:5px;flex-wrap:wrap">
-        <button class="speed-btn" data-rate="0.5"  onclick="setSpeed(this)">0.5×</button>
-        <button class="speed-btn" data-rate="0.65" onclick="setSpeed(this)">0.65×</button>
-        <button class="speed-btn active-speed" data-rate="0.8"  onclick="setSpeed(this)">0.8×</button>
-        <button class="speed-btn" data-rate="1.0"  onclick="setSpeed(this)">1.0×</button>
-        <button class="speed-btn" data-rate="1.2"  onclick="setSpeed(this)">1.2×</button>
-      </div>
-    </div>
   </div>
   <div class="rec-area" id="rec-area">
     <div class="rec-ring" id="rec-ring" onclick="toggleRecord()">
@@ -284,26 +277,32 @@
   </div>
 
   <!-- 錄音預覽區：聽自己聲音後決定送出或重錄 -->
-  <div id="preview-section" style="display:none;flex-direction:column;align-items:center;padding:16px 0 8px">
-    <div id="preview-playback" style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-      <button id="preview-play-btn" onclick="playPreview(this)" style="width:56px;height:56px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--blue)"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+  <div id="preview-section" style="display:none;flex-direction:column;align-items:center;padding:12px 0 8px">
+    <!-- 播放錄音列 -->
+    <div style="width:100%;display:flex;align-items:center;gap:12px;background:var(--bg2);border-radius:var(--radius);padding:12px 16px;margin-bottom:22px">
+      <button id="preview-play-btn" onclick="playPreview(this)" style="width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;color:var(--blue)"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       </button>
-      <div>
+      <div style="flex:1">
         <div style="font-size:14px;font-weight:500;color:var(--text)" id="preview-title">聽聽你的錄音</div>
         <div style="font-size:12px;color:var(--text3);margin-top:2px" id="preview-sub">確認後送出 AI 評分</div>
       </div>
     </div>
-    <div style="display:flex;gap:10px;width:100%">
-      <button class="retry-btn" onclick="retryFromPreview()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
-        <span id="preview-retry-label">錄製</span>
-      </button>
-      <button class="next-btn" style="flex:2" onclick="submitToAI()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
-        <span id="preview-submit-label">送出評分</span>
-      </button>
+    <!-- 麥克風環形重錄按鈕 -->
+    <div class="rec-ring" id="preview-rec-ring" onclick="retryFromPreview()" style="margin-bottom:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:34px;height:34px;color:var(--text2)">
+        <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="8" y1="22" x2="16" y2="22"/>
+      </svg>
     </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:20px" id="preview-retry-label">重新錄音</div>
+    <!-- 送出按鈕 -->
+    <button class="next-btn" style="width:100%" onclick="submitToAI()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+      <span id="preview-submit-label">送出評分</span>
+    </button>
   </div>
   <div id="result-section" style="display:none;">
     <div class="transcript-row" id="transcript-row"></div>
@@ -532,13 +531,14 @@ const DB = {
   }
 };
 
-const PASS_SCORE = 60;
+const PASS_SCORE = 70;
 let activeLang=null, activeSet='free', nativeLang='zh', showTranslation=true;
 let current=0, scores={}, bestScores={};
 let mediaRecorder=null, audioChunks=[], isRecording=false;
 let startTime=Date.now(), streak=3;
 let geminiKey='';
 let azureKey='', azureRegion='pronunciation-coach-speech';
+let sentFontSize=24;
 
 // Central accessor — all code uses this instead of DB[activeLang].sentences
 function getLangSet(){ return DB[activeLang]?.sets?.[activeSet] || DB[activeLang]?.sets?.free; }
@@ -636,6 +636,9 @@ function loadKey(){
   geminiKey    = localStorage.getItem('gemini_key')||'';
   azureKey     = localStorage.getItem('azure_key')||'';
   azureRegion  = localStorage.getItem('azure_region')||'pronunciation-coach-speech';
+  sentFontSize = parseInt(localStorage.getItem('sent_font_size')||'24');
+  ttsSpeed     = parseFloat(localStorage.getItem('tts_speed')||'0.8');
+  document.documentElement.style.setProperty('--sent-font-size', sentFontSize+'px');
 }
 function saveKey(){
   const ak = document.getElementById('azure-key-input').value.trim();
@@ -655,6 +658,12 @@ function openKeyModal(){
   if(akEl) akEl.value = azureKey;
   if(arEl) arEl.value = azureRegion;
   document.getElementById('api-key-input').value = geminiKey;
+  // 同步速率按鈕
+  document.querySelectorAll('.speed-btn').forEach(b =>
+    b.classList.toggle('active-speed', parseFloat(b.dataset.rate)===ttsSpeed));
+  // 同步字體大小按鈕
+  document.querySelectorAll('.font-size-btn').forEach(b =>
+    b.classList.toggle('active-settings', parseInt(b.dataset.size)===sentFontSize));
   modal.classList.remove('hidden');
 }
 function closeKeyModal(){ if(azureKey||geminiKey) document.getElementById('key-modal').classList.add('hidden'); }
@@ -1196,10 +1205,17 @@ async function ttsCacheLoad(key){
 
 function setSpeed(btn){
   ttsSpeed = parseFloat(btn.dataset.rate);
+  localStorage.setItem('tts_speed', ttsSpeed);
   document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active-speed'));
   btn.classList.add('active-speed');
-  // If currently playing, apply immediately
   if(ttsAudio) ttsAudio.playbackRate = ttsSpeed;
+}
+function setFontSize(size){
+  sentFontSize = size;
+  localStorage.setItem('sent_font_size', size);
+  document.documentElement.style.setProperty('--sent-font-size', size+'px');
+  document.querySelectorAll('.font-size-btn').forEach(b =>
+    b.classList.toggle('active-settings', parseInt(b.dataset.size)===size));
 }
 
 function setRecLock(locked){
@@ -1657,10 +1673,10 @@ async function scoreWithAzure(targetSentence, words, wavBlob, lang){
   const paConfig = {
     ReferenceText:           targetSentence,
     GradingSystem:           'HundredMark',
-    Granularity:             'Word',
+    Granularity:             'Phoneme',
     Dimension:               'Comprehensive',
     EnableMiscue:            true,
-    EnableProsodyAssessment: 'True'
+    EnableProsodyAssessment: lang === 'en' ? 'True' : 'False'
   };
   const paJson    = JSON.stringify(paConfig);
   const utf8Bytes = new TextEncoder().encode(paJson);
@@ -1700,26 +1716,31 @@ async function scoreWithAzure(targetSentence, words, wavBlob, lang){
   const flu    = Math.round(nBest.FluencyScore     ?? nBest.PronunciationAssessment?.FluencyScore     ?? 0);
   const comp   = Math.round(nBest.CompletenessScore?? nBest.PronunciationAssessment?.CompletenessScore?? 0);
 
-  // Per-word results
+  // Per-word results — text 匹配避免 EnableMiscue 造成的 index 偏移
+  const azureWords = nBest.Words || [];
   const wordResults = words.map((word, i)=>{
-    const wData  = nBest.Words?.[i];
+    const wData = azureWords.find(w =>
+      (w.Word||w.Lexical||'').toLowerCase() === word.toLowerCase()
+    ) || azureWords[i];
     const wScore = wData?.AccuracyScore ?? wData?.PronunciationAssessment?.AccuracyScore ?? 0;
     const errType= wData?.ErrorType     ?? wData?.PronunciationAssessment?.ErrorType     ?? 'None';
     let status = 'good';
-    if(errType !== 'None' || wScore < 60) status = 'bad';
-    else if(wScore < 80) status = 'ok';
+    if(errType !== 'None' || wScore < 70) status = 'bad';
+    else if(wScore < 85) status = 'ok';
     return {word, status};
   });
 
-  // Build feedback
+  // Build feedback — 完整度 <80 一定顯示警告
+  const warning = comp < 80
+    ? (lang==='zh'?'⚠ 句子不完整 · ':lang==='ja'?'⚠ 文が不完全 · ':'⚠ Incomplete · ')
+    : '';
   let feedback = '';
   if(score >= 85)    feedback = lang==='zh'?'發音很準確！繼續保持。':lang==='ja'?'発音が正確です！':'Excellent pronunciation!';
   else if(acc < flu) feedback = lang==='zh'?`準確度 ${acc}，注意字詞發音`:lang==='ja'?`正確度${acc}点`:  `Accuracy ${acc} — focus on word sounds`;
   else if(flu < acc) feedback = lang==='zh'?`流暢度 ${flu}，練習語速`:lang==='ja'?`流暢度${flu}点`: `Fluency ${flu} — practice rhythm`;
-  else if(comp < 90) feedback = lang==='zh'?'注意說完整句子':lang==='ja'?'文全体を発音して': 'Say the complete sentence';
   else               feedback = lang==='zh'?`準確 ${acc} 流暢 ${flu}`:lang==='ja'?`正確${acc} 流暢${flu}`: `Accuracy ${acc}, Fluency ${flu}`;
 
-  return {heard, score, wordResults, feedback};
+  return {heard, score, wordResults, feedback: warning + feedback};
 }
 
 /* ── Main scoring entry point (Azure PA with Gemini fallback) ── */
@@ -1862,23 +1883,46 @@ document.addEventListener('click', e => {
   } else { window._debugTaps=0; }
 });
 </script>
-<!-- API Key Modal -->
+<!-- Settings Modal -->
 <div class="modal-overlay hidden" id="key-modal" onclick="closeKeyModal()">
-  <div class="modal-sheet" onclick="event.stopPropagation()">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="overflow-y:auto;max-height:88dvh">
     <div class="modal-handle"></div>
-    <div class="modal-title">API Key 設定</div>
+    <div class="modal-title">設定</div>
     <div style="padding:0 20px 24px;display:flex;flex-direction:column;gap:12px">
+
       <div style="font-size:13px;font-weight:600;color:var(--text2)">🎤 Azure Speech（發音評分）</div>
       <input id="azure-key-input" type="password" placeholder="Azure Speech Key..." autocomplete="off"
         style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;outline:none">
       <input id="azure-region-input" type="text" placeholder="資源名稱，例如：pronunciation-coach-speech" autocomplete="off"
         style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:14px;font-family:inherit;outline:none">
       <p style="font-size:11px;color:var(--text3);margin-top:-6px">填入你在 Azure 建立的語音服務名稱（不是 region，是資源名稱）</p>
+
       <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px">✨ Gemini（圖片生成 / TTS）</div>
       <input id="api-key-input" type="password" placeholder="AIza..." autocomplete="off"
         style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;outline:none">
-      <button onclick="saveKey()" style="width:100%;padding:14px;font-size:15px;font-weight:600;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存並開始</button>
-      <p style="font-size:11px;color:var(--text3);text-align:center">所有 Key 只存在你的裝置，不會傳送到其他地方</p>
+
+      <button onclick="saveKey()" style="width:100%;padding:14px;font-size:15px;font-weight:600;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存 API Key</button>
+      <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:-4px">所有 Key 只存在你的裝置，不會傳送到其他地方</p>
+
+      <div style="border-top:0.5px solid var(--border);margin:4px 0"></div>
+
+      <div style="font-size:13px;font-weight:600;color:var(--text2)">▶ 播放速率</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="speed-btn" data-rate="0.5"  onclick="setSpeed(this)">0.5×</button>
+        <button class="speed-btn" data-rate="0.65" onclick="setSpeed(this)">0.65×</button>
+        <button class="speed-btn active-speed" data-rate="0.8"  onclick="setSpeed(this)">0.8×</button>
+        <button class="speed-btn" data-rate="1.0"  onclick="setSpeed(this)">1.0×</button>
+        <button class="speed-btn" data-rate="1.2"  onclick="setSpeed(this)">1.2×</button>
+      </div>
+
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px">🔤 例句字體大小</div>
+      <div style="display:flex;gap:6px">
+        <button class="settings-btn font-size-btn" data-size="18" onclick="setFontSize(18)">小</button>
+        <button class="settings-btn font-size-btn active-settings" data-size="24" onclick="setFontSize(24)">中</button>
+        <button class="settings-btn font-size-btn" data-size="30" onclick="setFontSize(30)">大</button>
+        <button class="settings-btn font-size-btn" data-size="36" onclick="setFontSize(36)">特大</button>
+      </div>
+
     </div>
   </div>
 </div>
