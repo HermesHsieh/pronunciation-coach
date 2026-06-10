@@ -1454,6 +1454,7 @@ function retryFromPreview(){
   document.getElementById('rec-ring').classList.remove('recording');
   document.getElementById('rec-ring').style.opacity='1';
   document.getElementById('rec-ring').style.pointerEvents='auto';
+  startRecording(); // auto-start immediately
 }
 
 async function submitToAI(){
@@ -1625,7 +1626,8 @@ Statut : good/ok/bad.`
         ]}],
         generationConfig:{
           temperature:0.1,
-          maxOutputTokens:1500
+          maxOutputTokens:1500,
+          responseMimeType:'application/json'  // force clean JSON, no markdown fences
         }
       })
     }
@@ -1636,9 +1638,35 @@ Statut : good/ok/bad.`
   }
   const data=await res.json();
   const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
-  const jsonMatch=raw.match(/\{[\s\S]*\}/);
-  if(!jsonMatch) throw new Error('No JSON in response: '+raw.slice(0,200));
-  return JSON.parse(jsonMatch[0]);
+
+  // Robust JSON extraction: strip markdown fences first, then find outermost {}
+  const stripped = raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+  // Find the outermost complete JSON object
+  const start = stripped.indexOf('{');
+  const end = stripped.lastIndexOf('}');
+  if(start === -1 || end === -1) throw new Error('No JSON in response: '+raw.slice(0,200));
+  let jsonStr = stripped.slice(start, end+1);
+
+  // Safely parse — if fails, try to rescue truncated JSON by closing it
+  let result;
+  try {
+    result = JSON.parse(jsonStr);
+  } catch(e) {
+    // Response may be truncated — extract what we can field by field
+    const heardMatch = jsonStr.match(/"heard"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const scoreMatch = jsonStr.match(/"score"\s*:\s*(\d+)/);
+    const reasoningMatch = jsonStr.match(/"reasoning"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const feedbackMatch = jsonStr.match(/"feedback"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if(!scoreMatch) throw new Error('Cannot extract score from response: '+raw.slice(0,300));
+    result = {
+      heard: heardMatch?.[1] || '',
+      score: parseInt(scoreMatch[1]),
+      reasoning: reasoningMatch?.[1] || '',
+      feedback: feedbackMatch?.[1] || '',
+      wordResults: [] // will show no word colors but at least score works
+    };
+  }
+  return result;
 }
 
 function blobToBase64(blob){
