@@ -278,6 +278,29 @@
     <div class="rec-hint" id="rec-hint">按下麥克風開始跟讀</div>
     <div class="rec-sub" id="rec-sub">說完後再按一次停止</div>
   </div>
+
+  <!-- 錄音預覽區：聽自己聲音後決定送出或重錄 -->
+  <div id="preview-section" style="display:none;flex-direction:column;align-items:center;padding:16px 0 8px">
+    <div id="preview-playback" style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <button id="preview-play-btn" onclick="playPreview(this)" style="width:56px;height:56px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--blue)"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <div>
+        <div style="font-size:14px;font-weight:500;color:var(--text)" id="preview-title">聽聽你的錄音</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px" id="preview-sub">確認後送出 AI 評分</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;width:100%">
+      <button class="retry-btn" onclick="retryFromPreview()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+        <span id="preview-retry-label">重新錄製</span>
+      </button>
+      <button class="next-btn" style="flex:2" onclick="submitToAI()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+        <span id="preview-submit-label">送出評分</span>
+      </button>
+    </div>
+  </div>
   <div id="result-section" style="display:none;">
     <div class="transcript-row" id="transcript-row"></div>
     <div id="ai-loading" class="ai-loading" style="display:none">
@@ -531,6 +554,8 @@ const I18N = {
     recording:'錄音中…', processing:'處理中…', analysing:'Gemini 聆聽分析中…',
     noSpeech:'未偵測到聲音，請再試一次', noMic:'請允許麥克風權限後重試',
     retryBtn:'重新錄製', nextBtn:'下一句', finalBtn:'查看今日結果',
+    previewTitle:'聽聽你的錄音', previewSub:'確認後再送出 AI 評分',
+    submitBtn:'送出評分',
     aiHeard:'AI 聽到', playMyRec:'聽自己的錄音',
     scoreLocked:(min)=>`分數需達 ${min} 分才能繼續`,
     scoreGood:'優秀', scoreFine:'不錯', scoreOk:'加油', scoreLow:'再試試',
@@ -556,6 +581,8 @@ const I18N = {
     recording:'Recording…', processing:'Processing…', analysing:'Gemini analysing audio…',
     noSpeech:'No speech detected. Try again.', noMic:'Please allow microphone access',
     retryBtn:'Retry', nextBtn:'Next', finalBtn:'See results',
+    previewTitle:'Listen to your recording', previewSub:'Submit for AI scoring when ready',
+    submitBtn:'Submit for scoring',
     aiHeard:'AI heard', playMyRec:'Play my recording',
     scoreLocked:(min)=>`Need ${min}+ to continue`,
     scoreGood:'Excellent', scoreFine:'Good', scoreOk:'Keep going', scoreLow:'Try again',
@@ -581,6 +608,8 @@ const I18N = {
     recording:'録音中…', processing:'処理中…', analysing:'Gemini が音声を分析中…',
     noSpeech:'音声が検出されません。もう一度試してください。', noMic:'マイクのアクセスを許可してください',
     retryBtn:'再録音', nextBtn:'次へ', finalBtn:'結果を見る',
+    previewTitle:'録音を確認する', previewSub:'よければAI採点へ送信',
+    submitBtn:'採点する',
     aiHeard:'AIが聞いた', playMyRec:'録音を聴く',
     scoreLocked:(min)=>`${min}点以上で次へ進めます`,
     scoreGood:'優秀', scoreFine:'良い', scoreOk:'頑張れ', scoreLow:'もう一度',
@@ -959,6 +988,7 @@ function loadSentence(){
   document.getElementById('play-btn').disabled=false;
 
   document.getElementById('rec-area').style.display='flex';
+  document.getElementById('preview-section').style.display='none';
   document.getElementById('result-section').style.display='none';
   document.getElementById('ai-loading').style.display='none';
   document.getElementById('result-card').style.display='none';
@@ -1190,28 +1220,80 @@ function stopRecording(cancel=false){
 }
 
 /* ── Gemini Audio Scoring ── */
-let lastRecordingUrl = null;  // object URL of last recording
+let lastRecordingUrl = null;
+let lastBlob = null;
 
 async function processAudio(){
-  const set=getLangSet(), s=set.sentences[current];
+  const blob = new Blob(audioChunks, {type: mediaRecorder?.mimeType || audioChunks[0]?.type || 'audio/mp4'});
+  const blobKB = (blob.size/1024).toFixed(1);
+  console.log(`Recording: ${blobKB}KB, chunks: ${audioChunks.length}`);
 
-  const blob=new Blob(audioChunks, {type: mediaRecorder?.mimeType || audioChunks[0]?.type || 'audio/mp4'});
-  const base64=await blobToBase64(blob);
-  // Gemini accepts: audio/mp4, audio/mpeg, audio/webm, audio/ogg, audio/wav
-  // Normalise: strip codec params, fallback to audio/mp4
+  if(lastRecordingUrl) URL.revokeObjectURL(lastRecordingUrl);
+  lastRecordingUrl = URL.createObjectURL(blob);
+  lastBlob = blob;
+
+  // Show preview section
+  document.getElementById('rec-area').style.display='none';
+  document.getElementById('preview-section').style.display='flex';
+  document.getElementById('result-section').style.display='none';
+
+  document.getElementById('preview-title').textContent = t('previewTitle');
+  document.getElementById('preview-sub').textContent = t('previewSub');
+  document.getElementById('preview-retry-label').textContent = t('retryBtn');
+  document.getElementById('preview-submit-label').textContent = t('submitBtn');
+
+  // Auto-play the recording
+  autoPlayPreview();
+}
+
+let previewAudio = null;
+function autoPlayPreview(){
+  if(previewAudio){ previewAudio.pause(); previewAudio=null; }
+  if(!lastRecordingUrl) return;
+  const btn = document.getElementById('preview-play-btn');
+  const stopIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:#E24B4A"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`;
+  const playIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--blue)"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+  previewAudio = new Audio(lastRecordingUrl);
+  btn.innerHTML = stopIcon;
+  previewAudio.onended = ()=>{ btn.innerHTML = playIcon; previewAudio=null; };
+  previewAudio.onerror = ()=>{ btn.innerHTML = playIcon; previewAudio=null; };
+  previewAudio.play().catch(()=>{ btn.innerHTML = playIcon; });
+}
+
+function playPreview(btn){
+  if(previewAudio && !previewAudio.paused){
+    previewAudio.pause(); previewAudio=null;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--blue)"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+    return;
+  }
+  autoPlayPreview();
+}
+
+function retryFromPreview(){
+  if(previewAudio){ previewAudio.pause(); previewAudio=null; }
+  document.getElementById('preview-section').style.display='none';
+  document.getElementById('rec-area').style.display='flex';
+  setRecIcon('mic');
+  document.getElementById('rec-hint').textContent = t('tapRec');
+  document.getElementById('rec-sub').textContent = t('tapStop');
+  document.getElementById('rec-ring').classList.remove('recording');
+  document.getElementById('rec-ring').style.opacity='1';
+  document.getElementById('rec-ring').style.pointerEvents='auto';
+}
+
+async function submitToAI(){
+  if(previewAudio){ previewAudio.pause(); previewAudio=null; }
+  if(!lastBlob) return;
+
+  const set=getLangSet(), s=set.sentences[current];
+  const blob = lastBlob;
+  const base64 = await blobToBase64(blob);
   let mimeType = blob.type.split(';')[0].trim();
   const supported = ['audio/mp4','audio/mpeg','audio/webm','audio/ogg','audio/wav','audio/aac'];
   if(!supported.includes(mimeType)) mimeType = 'audio/mp4';
-
   const blobKB = (blob.size/1024).toFixed(1);
-  console.log(`Recording: ${blobKB}KB, format: ${mimeType}, chunks: ${audioChunks.length}`);
 
-  // Save for playback
-  if(lastRecordingUrl) URL.revokeObjectURL(lastRecordingUrl);
-  lastRecordingUrl = URL.createObjectURL(blob);
-
-  // Show loading UI
-  document.getElementById('rec-area').style.display='none';
+  document.getElementById('preview-section').style.display='none';
   document.getElementById('result-section').style.display='block';
   setTimeout(()=>document.getElementById('result-section').scrollIntoView({behavior:'smooth', block:'start'}), 100);
   document.getElementById('ai-loading').style.display='flex';
@@ -1228,31 +1310,25 @@ async function processAudio(){
   }catch(err){
     console.error(err);
     score=0; wordResults=s.words.map(w=>({word:w,status:'bad'}));
-    feedbackText='API 錯誤：'+err.message;
-    heardText='';
+    feedbackText='API 錯誤：'+err.message; heardText='';
   }
 
-  // Track best score
   const prev=bestScores[current];
   if(prev===undefined||score>prev) bestScores[current]=score;
   scores[current]=bestScores[current];
 
-  // Show transcript + playback button — always show playback regardless of heardText
-  const playbackLabel = t('playMyRec');
-  const heardLabel = t('aiHeard');
   document.getElementById('transcript-row').innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-      ${heardText ? `<span style="font-size:12px;color:var(--text3)">${heardLabel}：<span style="font-style:italic;color:var(--text2)">${heardText}</span></span>` : '<span></span>'}
+      ${heardText ? `<span style="font-size:12px;color:var(--text3)">${t('aiHeard')}：<span style="font-style:italic;color:var(--text2)">${heardText}</span></span>` : '<span></span>'}
       <button id="play-my-rec-btn" onclick="playMyRecording(this)" style="display:flex;align-items:center;gap:5px;font-size:12px;padding:6px 12px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--blue);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        ${playbackLabel}
+        ${t('playMyRec')}
       </button>
     </div>`;
 
   document.getElementById('ai-loading').style.display='none';
   document.getElementById('result-card').style.display='block';
 
-  // Score-based Next button lock
   const passed = score >= PASS_SCORE;
   const nextBtn = document.getElementById('next-btn');
   nextBtn.disabled = !passed;
@@ -1413,11 +1489,13 @@ function showResult(score, wordResults, feedbackText, prevScore){
 
 function retryRecord(){
   document.getElementById('result-section').style.display='none';
+  document.getElementById('preview-section').style.display='none';
   document.getElementById('rec-area').style.display='flex';
   document.getElementById('rec-ring').style.opacity='1';
   document.getElementById('rec-ring').style.pointerEvents='auto';
   setRecIcon('mic');
-  // Immediately start recording — no extra tap needed
+  document.getElementById('rec-hint').textContent = t('tapRec');
+  document.getElementById('rec-sub').textContent = t('tapStop');
   startRecording();
 }
 
