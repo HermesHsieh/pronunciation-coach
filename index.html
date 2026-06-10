@@ -294,7 +294,7 @@
     <div style="display:flex;gap:10px;width:100%">
       <button class="retry-btn" onclick="retryFromPreview()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
-        <span id="preview-retry-label">重新錄製</span>
+        <span id="preview-retry-label">錄製</span>
       </button>
       <button class="next-btn" style="flex:2" onclick="submitToAI()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
@@ -322,7 +322,7 @@
     <div class="btn-row" style="position:sticky;bottom:0;background:var(--bg);padding:12px 0 4px;margin-top:12px">
       <button class="retry-btn" id="retry-btn" onclick="retryRecord()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
-        重新錄製
+        錄製
       </button>
       <button class="next-btn" id="next-btn" onclick="nextSentence()">
         <span id="next-label">下一句</span>
@@ -555,7 +555,7 @@ const I18N = {
     tapRec:'按下麥克風開始跟讀', tapStop:'說完後再按一次停止',
     recording:'錄音中…', processing:'處理中…', analysing:'Gemini 聆聽分析中…',
     noSpeech:'未偵測到聲音，請再試一次', noMic:'請允許麥克風權限後重試',
-    retryBtn:'重新錄製', nextBtn:'下一句', finalBtn:'查看今日結果',
+    retryBtn:'錄製', nextBtn:'下一句', finalBtn:'查看今日結果',
     previewTitle:'聽聽你的錄音', previewSub:'確認後再送出 AI 評分',
     submitBtn:'送出評分',
     aiHeard:'AI 聽到', playMyRec:'聽自己的錄音',
@@ -582,7 +582,7 @@ const I18N = {
     tapRec:'Tap to start recording', tapStop:'Tap again when done',
     recording:'Recording…', processing:'Processing…', analysing:'Gemini analysing audio…',
     noSpeech:'No speech detected. Try again.', noMic:'Please allow microphone access',
-    retryBtn:'Retry', nextBtn:'Next', finalBtn:'See results',
+    retryBtn:'Record', nextBtn:'Next', finalBtn:'See results',
     previewTitle:'Listen to your recording', previewSub:'Submit for AI scoring when ready',
     submitBtn:'Submit for scoring',
     aiHeard:'AI heard', playMyRec:'Play my recording',
@@ -609,7 +609,7 @@ const I18N = {
     tapRec:'マイクをタップして読む', tapStop:'終わったらもう一度タップ',
     recording:'録音中…', processing:'処理中…', analysing:'Gemini が音声を分析中…',
     noSpeech:'音声が検出されません。もう一度試してください。', noMic:'マイクのアクセスを許可してください',
-    retryBtn:'再録音', nextBtn:'次へ', finalBtn:'結果を見る',
+    retryBtn:'録音', nextBtn:'次へ', finalBtn:'結果を見る',
     previewTitle:'録音を確認する', previewSub:'よければAI採点へ送信',
     submitBtn:'採点する',
     aiHeard:'AIが聞いた', playMyRec:'録音を聴く',
