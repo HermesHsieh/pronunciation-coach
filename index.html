@@ -1701,16 +1701,19 @@ async function scoreWithAzure(targetSentence, words, wavBlob, lang){
 async function scoreAudio(targetSentence, words, blob, lang){
   if(azureKey){
     try {
-      // Convert to WAV PCM 16kHz for Azure
       document.getElementById('ai-loading-text').textContent =
         (lang==='zh'?'轉換音頻格式中…':lang==='ja'?'音声を変換中…':'Converting audio…');
       const wavBlob = await blobToWavPCM(blob);
       document.getElementById('ai-loading-text').textContent =
         (lang==='zh'?'Azure 分析發音中…':lang==='ja'?'Azure が発音を分析中…':'Azure analysing pronunciation…');
-      return await scoreWithAzure(targetSentence, words, wavBlob, lang);
+      const result = await scoreWithAzure(targetSentence, words, wavBlob, lang);
+      console.log('✅ Azure PA success:', result);
+      return result;
     } catch(e) {
-      console.warn('Azure PA failed, falling back to Gemini:', e.message);
-      // Fall through to Gemini
+      console.error('❌ Azure PA failed:', e.message);
+      // Show error to user so they can debug
+      document.getElementById('ai-loading-text').textContent = '⚠️ Azure 錯誤，改用 Gemini… (' + e.message.slice(0,60) + ')';
+      await new Promise(r=>setTimeout(r,2000)); // show error for 2s before fallback
     }
   }
   // Gemini fallback
