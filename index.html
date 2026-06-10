@@ -525,7 +525,7 @@ const I18N = {
     keyPlaceholder:'AIza...', keySave:'儲存並開始', keyNote:'Key 只存在你的裝置，不會傳送到其他地方',
     streakLabel:'天連續',
     sentenceOf:(c,t)=>`第 ${c} 句，共 ${t} 句`,
-    playBtn:'聽範例發音', playAgain:'再聽一次', playing:'播放中…',
+    playBtn:'聽範例發音', playAgain:'再聽一次', playing:'播放中…', ttsLoading:'生成語音中…',
     waitPlay:'播放結束後才能錄音',
     tapRec:'按下麥克風開始跟讀', tapStop:'說完後再按一次停止',
     recording:'錄音中…', processing:'處理中…', analysing:'Gemini 聆聽分析中…',
@@ -550,7 +550,7 @@ const I18N = {
     keyPlaceholder:'AIza...', keySave:'Save & Start', keyNote:'Key stays on your device only',
     streakLabel:' day streak',
     sentenceOf:(c,t)=>`Sentence ${c} of ${t}`,
-    playBtn:'Play example', playAgain:'Play again', playing:'Playing…',
+    playBtn:'Play example', playAgain:'Play again', playing:'Playing…', ttsLoading:'Generating audio…',
     waitPlay:'Wait for playback to finish…',
     tapRec:'Tap to start recording', tapStop:'Tap again when done',
     recording:'Recording…', processing:'Processing…', analysing:'Gemini analysing audio…',
@@ -575,7 +575,7 @@ const I18N = {
     keyPlaceholder:'AIza...', keySave:'保存して開始', keyNote:'キーはデバイスにのみ保存されます',
     streakLabel:'日連続',
     sentenceOf:(c,t)=>`${c} / ${t} 文目`,
-    playBtn:'発音を聞く', playAgain:'もう一度', playing:'再生中…',
+    playBtn:'発音を聞く', playAgain:'もう一度', playing:'再生中…', ttsLoading:'音声生成中…',
     waitPlay:'再生終了後に録音できます',
     tapRec:'マイクをタップして読む', tapStop:'終わったらもう一度タップ',
     recording:'録音中…', processing:'処理中…', analysing:'Gemini が音声を分析中…',
@@ -777,6 +777,66 @@ function jumpTo(i){ current=i; loadSentence(); }
 
 /* ── Illustration (Gemini Imagen) ── */
 const imgCache = {};
+const IMG_LS_PREFIX = 'speakdaily_img_';
+const IMG_LS_MAX_BYTES = 4 * 1024 * 1024; // 4MB total localStorage budget for images
+
+// Compress a data URL to JPEG at 50% quality using Canvas
+function compressDataUrl(dataUrl){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.5)); // 50% quality JPEG
+    };
+    img.onerror = ()=> resolve(dataUrl); // fallback: return original if compression fails
+    img.src = dataUrl;
+  });
+}
+
+// Save compressed image to localStorage, evict oldest if over budget
+function lsSaveImg(cacheKey, dataUrl){
+  try {
+    const lsKey = IMG_LS_PREFIX + cacheKey;
+    // Check total usage and evict oldest if needed
+    let used = 0;
+    const entries = [];
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith(IMG_LS_PREFIX)){
+        const val = localStorage.getItem(k);
+        const size = val ? val.length : 0;
+        used += size;
+        entries.push({k, size, ts: parseInt(localStorage.getItem(k+'_ts')||'0')});
+      }
+    }
+    // Evict oldest entries until we have room
+    entries.sort((a,b)=>a.ts-b.ts);
+    let newSize = dataUrl.length;
+    while(used + newSize > IMG_LS_MAX_BYTES && entries.length > 0){
+      const oldest = entries.shift();
+      localStorage.removeItem(oldest.k);
+      localStorage.removeItem(oldest.k+'_ts');
+      used -= oldest.size;
+    }
+    localStorage.setItem(lsKey, dataUrl);
+    localStorage.setItem(lsKey+'_ts', Date.now().toString());
+  } catch(e) {
+    // localStorage full or unavailable — skip silently
+    console.warn('localStorage save failed:', e.message);
+  }
+}
+
+// Load image from localStorage into memory cache
+function lsLoadImg(cacheKey){
+  try {
+    const val = localStorage.getItem(IMG_LS_PREFIX + cacheKey);
+    if(val){ imgCache[cacheKey] = val; return true; }
+  } catch(e) {}
+  return false;
+}
 
 async function callImageAPI(prompt){
   const res = await fetch(
@@ -786,7 +846,7 @@ async function callImageAPI(prompt){
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{parts:[{text: prompt + '. Illustration only, no text or words anywhere in the image.'}]}],
-        generationConfig:{ responseModalities:['IMAGE'] }  // IMAGE only — no text bleed
+        generationConfig:{ responseModalities:['IMAGE'] }
       })
     }
   );
@@ -795,7 +855,9 @@ async function callImageAPI(prompt){
   const parts = data.candidates?.[0]?.content?.parts || [];
   const imgPart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
   if(!imgPart) throw new Error('no image part in response');
-  return `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+  const rawUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+  // Compress to 50% JPEG to reduce storage size
+  return await compressDataUrl(rawUrl);
 }
 
 async function generateIllustration(langKey, setKey, index){
@@ -810,7 +872,17 @@ async function generateIllustration(langKey, setKey, index){
   skeleton.style.display = 'flex';
   wrap.style.minHeight = '140px';
 
+  // 1. Memory cache (fastest)
   if(imgCache[cacheKey]){
+    imgEl.src = imgCache[cacheKey];
+    imgEl.style.display = 'block';
+    skeleton.style.display = 'none';
+    wrap.style.minHeight = '0';
+    return;
+  }
+
+  // 2. localStorage cache (persists across sessions)
+  if(lsLoadImg(cacheKey)){
     imgEl.src = imgCache[cacheKey];
     imgEl.style.display = 'block';
     skeleton.style.display = 'none';
@@ -828,6 +900,7 @@ async function generateIllustration(langKey, setKey, index){
   try {
     const dataUrl = await callImageAPI(prompt);
     imgCache[cacheKey] = dataUrl;
+    lsSaveImg(cacheKey, dataUrl); // persist to localStorage
     imgEl.src = dataUrl;
     imgEl.style.display = 'block';
     skeleton.style.display = 'none';
@@ -847,11 +920,14 @@ function prefetchNext(){
 }
 async function generateIllustrationBg(langKey, setKey, index){
   const cacheKey = `${langKey}-${setKey}-${index}`;
-  if(imgCache[cacheKey] || !geminiKey) return;
+  // Check both memory and localStorage before calling API
+  if(imgCache[cacheKey] || lsLoadImg(cacheKey) || !geminiKey) return;
   const prompt = DB[langKey]?.sets?.[setKey]?.sentences[index]?.img;
   if(!prompt) return;
   try {
-    imgCache[cacheKey] = await callImageAPI(prompt);
+    const dataUrl = await callImageAPI(prompt);
+    imgCache[cacheKey] = dataUrl;
+    lsSaveImg(cacheKey, dataUrl);
   } catch(e) {}
 }
 function loadSentence(){
@@ -983,29 +1059,52 @@ function playSentence(){
   const btn=document.getElementById('play-btn');
   const pauseSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></svg>`;
   const playSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+  const spinnerSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite;flex-shrink:0"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
 
+  // Stop any ongoing playback
   window.speechSynthesis.cancel();
   if(ttsAudio){ ttsAudio.pause(); ttsAudio=null; }
-  if(!isRecording) setRecLock(true);
-  btn.innerHTML = pauseSvg+' '+t('playing');
 
   const cacheKey = `${activeLang}-${current}`;
-  const onDone = () => { btn.innerHTML = playSvg+' '+t('playAgain'); if(!isRecording) setRecLock(false); };
+
+  // Called when audio actually starts playing
+  const onPlayStart = () => {
+    btn.innerHTML = pauseSvg+' '+t('playing');
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    if(!isRecording) setRecLock(true);
+  };
+
+  // Called when audio ends or errors out
+  const onDone = () => {
+    btn.innerHTML = playSvg+' '+t('playAgain');
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    if(!isRecording) setRecLock(false);
+    ttsAudio = null;
+  };
 
   const playUrl = (url) => {
     ttsAudio = new Audio(url);
     ttsAudio.playbackRate = ttsSpeed;
-    ttsAudio.onended = () => { onDone(); ttsAudio=null; };
-    ttsAudio.onerror = () => { onDone(); ttsAudio=null; };
+    ttsAudio.onplay   = onPlayStart;   // fires when audio actually starts
+    ttsAudio.onended  = onDone;
+    ttsAudio.onerror  = onDone;
     ttsAudio.play().catch(()=>{ onDone(); });
   };
 
+  // ── Cache hit: play immediately ──
   if(ttsCache[cacheKey]){
     playUrl(ttsCache[cacheKey]);
     return;
   }
 
-  // Fetch from Gemini TTS
+  // ── Cache miss: show loading state, fetch from Gemini ──
+  btn.innerHTML = spinnerSvg+' '+t('ttsLoading');
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+  // Do NOT lock recording yet — audio hasn't started
+
   fetchTTSAudio(s.text, langDB.ttsLang)
     .then(url => {
       ttsCache[cacheKey] = url;
@@ -1013,7 +1112,10 @@ function playSentence(){
     })
     .catch(err => {
       console.warn('Gemini TTS failed, falling back to Web Speech:', err.message);
-      // Fallback to Web Speech API
+      btn.innerHTML = pauseSvg+' '+t('playing');
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      if(!isRecording) setRecLock(true);
       useWebSpeech(s.text, langDB.ttsLang, onDone);
     });
 }
