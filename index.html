@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>發音練習</title>
+<style>
+  :root {
+    --bg:#ffffff;--bg2:#f5f4f0;--bg3:#eeecea;
+    --text:#1a1a18;--text2:#6b6a64;--text3:#9e9d97;
+    --border:rgba(0,0,0,0.10);--border2:rgba(0,0,0,0.18);
+    --blue:#185FA5;--blue-bg:#E6F1FB;--blue-text:#0C447C;
+    --green-bg:#EAF3DE;--green-text:#27500A;
+    --amber-bg:#FAEEDA;--amber-text:#633806;
+    --red-bg:#FCEBEB;--red-text:#791F1F;
+    --radius:12px;--radius-sm:8px;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --bg:#1c1c1a;--bg2:#252523;--bg3:#2e2e2b;
+    --text:#e8e6de;--text2:#9e9d97;--text3:#6b6a64;
+    --border:rgba(255,255,255,0.10);--border2:rgba(255,255,255,0.18);
+    --blue:#85B7EB;--blue-bg:#0c2a47;--blue-text:#B5D4F4;
+    --green-bg:#173404;--green-text:#C0DD97;
+    --amber-bg:#412402;--amber-text:#FAC775;
+    --red-bg:#501313;--red-text:#F7C1C1;
+  }}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Helvetica Neue',Arial,sans-serif}
+  body{display:flex;flex-direction:column;align-items:center;min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+
+  .screen{display:none;flex-direction:column;width:100%;max-width:480px;min-height:100dvh;padding:20px 20px 32px;overflow:hidden}
+  .screen.active{display:flex}
+
+  /* Lang picker */
+  .picker-screen{justify-content:flex-start;overflow-y:auto}
+  .section-label{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px}
+  .native-chip{flex:1;text-align:center;padding:10px 4px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;background:var(--bg);transition:all .15s}
+  .native-chip:active{background:var(--bg2)}
+  .native-chip.selected-native{border:2px solid var(--blue);color:var(--blue-text);background:var(--blue-bg)}
+  .picker-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;margin-top:auto}
+  .picker-sub{font-size:14px;color:var(--text2);margin-bottom:32px}
+  .lang-options{display:flex;flex-direction:column;gap:12px;width:100%;margin-bottom:auto}
+  .lang-option{display:flex;align-items:center;gap:16px;padding:18px 20px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);cursor:pointer;transition:background .15s}
+  .lang-option:active{background:var(--bg2)}
+  .lang-option.selected{border:2px solid var(--blue)}
+  .lang-option.selected-native{border:2px solid var(--blue)}
+  .lang-flag{font-size:32px;line-height:1}
+  .lang-info{flex:1}
+  .lang-name{font-size:17px;font-weight:600;color:var(--text)}
+  .lang-desc{font-size:13px;color:var(--text2);margin-top:2px}
+  .start-btn{width:100%;padding:15px;font-size:16px;font-weight:600;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit;margin-top:28px}
+  .start-btn:active{opacity:.8}
+  .start-btn:disabled{opacity:.35;cursor:not-allowed}
+
+  /* Top bar */
+  .top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .back-btn{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--text2);background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 0}
+  .back-btn svg{width:16px;height:16px}
+  .lang-pill{font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px;background:var(--blue-bg);color:var(--blue-text)}
+  .list-btn{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text2);background:var(--bg2);border:none;border-radius:var(--radius-sm);padding:6px 12px;cursor:pointer;font-family:inherit}
+  .list-btn svg{width:15px;height:15px}
+  .list-btn:active{background:var(--bg3)}
+
+  /* Progress */
+  .progress-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .progress-label{font-size:13px;color:var(--text2)}
+  .streak-label{font-size:13px;color:var(--amber-text);background:var(--amber-bg);padding:2px 10px;border-radius:20px;font-weight:500}
+  .progress-track{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:20px}
+  .progress-bar{height:100%;background:var(--blue);border-radius:2px;transition:width .4s ease}
+
+  /* Sentence card */
+  .sentence-card{background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);padding:22px 20px 18px;margin-bottom:14px}
+  .sentence-text{font-size:24px;font-weight:600;line-height:1.5;color:var(--text);margin-bottom:8px}
+  .pinyin{font-size:14px;color:var(--text2);margin-bottom:5px;line-height:1.6;min-height:20px}
+  .hint{font-size:12px;color:var(--text3);font-style:italic;margin-bottom:14px}
+  .play-btn{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text2);background:var(--bg2);border:none;border-radius:var(--radius-sm);padding:10px 16px;cursor:pointer;width:100%;justify-content:center;font-family:inherit;transition:background .15s}
+  .play-btn:active{background:var(--bg3)}
+  .play-btn svg{width:16px;height:16px;flex-shrink:0}
+  .speed-btn{font-size:12px;font-weight:500;padding:4px 9px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:inherit;transition:all .15s}
+  .speed-btn:active{transform:scale(.95)}
+  .speed-btn.active-speed{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .set-option{display:flex;align-items:center;gap:12px;padding:14px 16px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);cursor:pointer;transition:background .15s}
+  .set-option:active{background:var(--bg2)}
+  .set-option.selected-set{border:2px solid var(--blue);background:var(--blue-bg)}
+  .set-icon{font-size:20px;flex-shrink:0}
+  .set-info{flex:1}
+  .set-name{font-size:15px;font-weight:600;color:var(--text)}
+  .set-count{font-size:12px;color:var(--text2);margin-top:2px}
+
+  /* Record */
+  .rec-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 0}
+  .rec-ring{width:88px;height:88px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;margin-bottom:14px}
+  .rec-ring:active{transform:scale(.95)}
+  .rec-ring.recording{border-color:#E24B4A;animation:ripple 1.2s ease-in-out infinite}
+  .rec-ring svg{width:34px;height:34px;color:var(--text2);transition:color .2s}
+  .rec-ring.recording svg{color:#E24B4A}
+  @keyframes ripple{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,.25)}50%{box-shadow:0 0 0 14px rgba(226,75,74,0)}}
+  .rec-hint{font-size:14px;color:var(--text2);text-align:center}
+  .rec-sub{font-size:12px;color:var(--text3);text-align:center;margin-top:5px}
+
+  /* Result */
+  .score-header{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+  .score-badge{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0}
+  .score-info{flex:1}
+  .score-grade{font-size:18px;font-weight:600;color:var(--text)}
+  .score-sub{font-size:13px;color:var(--text2);margin-top:3px;line-height:1.5}
+  .words-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .word-chip{font-size:14px;font-weight:500;padding:5px 12px;border-radius:20px}
+  .chip-good{background:var(--green-bg);color:var(--green-text)}
+  .chip-ok{background:var(--amber-bg);color:var(--amber-text)}
+  .chip-bad{background:var(--red-bg);color:var(--red-text)}
+  .feedback{font-size:13px;color:var(--text2);line-height:1.7;padding-top:10px;border-top:0.5px solid var(--border)}
+  .transcript-row{font-size:12px;color:var(--text3);margin-bottom:10px}
+  .transcript-row span{color:var(--text2);font-style:italic}
+
+  /* AI loading */
+  .ai-loading{display:flex;align-items:center;gap:10px;padding:16px;background:var(--bg2);border-radius:var(--radius);margin-bottom:10px}
+  .ai-spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .ai-loading-text{font-size:13px;color:var(--text2)}
+
+  /* Buttons */
+  .btn-row{display:flex;gap:10px;flex-shrink:0;margin-top:12px}
+  .next-btn{flex:2;padding:15px;font-size:15px;font-weight:600;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
+  .next-btn:active{opacity:.8}
+  .next-btn svg{width:17px;height:17px}
+  .retry-btn{flex:1;padding:15px;font-size:14px;font-weight:600;background:transparent;color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px}
+  .retry-btn:active{background:var(--bg2)}
+  .retry-btn svg{width:16px;height:16px}
+
+  /* Sentence list modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+  .modal-overlay.hidden{display:none}
+  .modal-sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:75dvh;display:flex;flex-direction:column;padding:0 0 env(safe-area-inset-bottom)}
+  .modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 0}
+  .modal-title{font-size:16px;font-weight:600;padding:14px 20px 10px;color:var(--text)}
+  .modal-list{overflow-y:auto;flex:1;padding:0 12px 16px}
+  .modal-item{display:flex;align-items:center;gap:12px;padding:12px 10px;border-radius:var(--radius-sm);cursor:pointer;border-bottom:0.5px solid var(--border)}
+  .modal-item:last-child{border-bottom:none}
+  .modal-item:active{background:var(--bg2)}
+  .modal-item.active-sent{background:var(--blue-bg)}
+  .modal-item-num{width:24px;height:24px;border-radius:50%;background:var(--bg2);font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .modal-item.active-sent .modal-item-num{background:var(--blue);color:#fff}
+  .modal-item-text{flex:1}
+  .modal-item-main{font-size:15px;color:var(--text);font-weight:500}
+  .modal-item-sub{font-size:12px;color:var(--text3);margin-top:2px}
+  .modal-item-score{font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px}
+
+  /* Summary */
+  .summary-screen{text-align:center}
+  .summary-icon{width:68px;height:68px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:24px auto 14px}
+  .summary-icon svg{width:34px;height:34px;color:var(--green-text)}
+  .summary-title{font-size:20px;font-weight:600;color:var(--text);margin-bottom:5px}
+  .summary-subtitle{font-size:14px;color:var(--text2);margin-bottom:24px}
+  .big-score{font-size:64px;font-weight:700;color:var(--text);line-height:1;margin-bottom:4px}
+  .big-score-label{font-size:14px;color:var(--text2);margin-bottom:24px}
+  .metrics-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:24px}
+  .metric-box{background:var(--bg2);border-radius:var(--radius-sm);padding:14px 8px}
+  .metric-val{font-size:20px;font-weight:600;color:var(--text)}
+  .metric-lbl{font-size:11px;color:var(--text2);margin-top:3px}
+  .sum-btn-row{display:flex;gap:10px}
+  .restart-btn{flex:1;padding:15px;font-size:15px;font-weight:600;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit}
+  .restart-btn:active{opacity:.8}
+  .change-lang-btn{flex:1;padding:15px;font-size:15px;font-weight:600;background:transparent;color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-family:inherit}
+  .change-lang-btn:active{background:var(--bg2)}
+</style>
+</head>
+<body>
+
+<!-- ① 語言選擇 -->
+<div class="screen picker-screen active" id="screen-picker">
+  <div class="picker-title">發音練習</div>
+  <div class="picker-sub">每天 5–10 分鐘，累積發音實力</div>
+
+  <div class="section-label">🎯 學習語言</div>
+  <div class="lang-options" style="margin-bottom:16px">
+    <div class="lang-option" data-lang="zh" onclick="selectLang(this)">
+      <span class="lang-flag">🇹🇼</span>
+      <div class="lang-info"><div class="lang-name">普通話</div><div class="lang-desc">Mandarin Chinese</div></div>
+    </div>
+    <div class="lang-option" data-lang="en" onclick="selectLang(this)">
+      <span class="lang-flag">🇺🇸</span>
+      <div class="lang-info"><div class="lang-name">英語</div><div class="lang-desc">English</div></div>
+    </div>
+    <div class="lang-option" data-lang="ja" onclick="selectLang(this)">
+      <span class="lang-flag">🇯🇵</span>
+      <div class="lang-info"><div class="lang-name">日語</div><div class="lang-desc">Japanese</div></div>
+    </div>
+    <div class="lang-option" data-lang="de" onclick="selectLang(this)">
+      <span class="lang-flag">🇩🇪</span>
+      <div class="lang-info"><div class="lang-name">德語</div><div class="lang-desc">Deutsch</div></div>
+    </div>
+    <div class="lang-option" data-lang="fr" onclick="selectLang(this)">
+      <span class="lang-flag">🇫🇷</span>
+      <div class="lang-info"><div class="lang-name">法語</div><div class="lang-desc">Français</div></div>
+    </div>
+  </div>
+
+  <div class="section-label">🌐 母語（翻譯語言）</div>
+  <div style="display:flex;gap:10px;margin-bottom:16px">
+    <div class="native-chip selected-native" data-native="zh" onclick="selectNative(this)">🇹🇼 繁中</div>
+    <div class="native-chip" data-native="en" onclick="selectNative(this)">🇺🇸 English</div>
+    <div class="native-chip" data-native="ja" onclick="selectNative(this)">🇯🇵 日本語</div>
+  </div>
+
+  <div id="set-section" style="display:none">
+    <div class="section-label">📖 練習情境</div>
+    <div id="set-options" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+  </div>
+
+  <button class="start-btn" id="start-btn" onclick="startPractice()" disabled>開始練習</button>
+</div>
+
+<!-- ② 練習 -->
+<div class="screen" id="screen-practice" style="overflow-y:auto">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goBack()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      換語言
+    </button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="list-btn" onclick="openKeyModal()" style="padding:6px 10px" title="API Key 設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="list-btn" onclick="openList()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        選句
+      </button>
+      <span class="lang-pill" id="lang-pill">普通話</span>
+    </div>
+  </div>
+  <div class="progress-row">
+    <span class="progress-label" id="prog-label">第 1 句，共 5 句</span>
+    <span class="streak-label">🔥 3 天連續</span>
+  </div>
+  <div class="progress-track"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>
+  <div class="sentence-card">
+    <div id="illus-wrap" style="width:100%;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:12px;background:var(--bg2);min-height:120px;max-height:180px;display:flex;align-items:center;justify-content:center;position:relative">
+      <div id="illus-skeleton" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;flex-direction:column">
+        <div style="width:32px;height:32px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite"></div>
+        <div style="font-size:12px;color:var(--text3)">生成插圖中…</div>
+      </div>
+      <img id="illus-img" style="width:100%;height:180px;object-fit:cover;display:none;border-radius:var(--radius-sm)" alt="sentence illustration">
+      <div id="illus-error" style="display:none;font-size:12px;color:var(--text3);padding:16px;text-align:center"></div>
+    </div>
+    <div class="sentence-text" id="sent-text"></div>
+    <div class="pinyin" id="sent-pinyin"></div>
+    <div id="translation-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div id="sent-translation" style="font-size:13px;color:var(--text2);line-height:1.5;flex:1"></div>
+      <button id="trans-toggle" onclick="toggleTranslation()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);flex-shrink:0;font-family:inherit">隱藏</button>
+    </div>
+    <div class="hint" id="sent-hint"></div>
+    <button class="play-btn" id="play-btn" onclick="playSentence()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      聽範例發音
+    </button>
+    <div id="speed-row" style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--text3);flex-shrink:0">速率</span>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="speed-btn" data-rate="0.5"  onclick="setSpeed(this)">0.5×</button>
+        <button class="speed-btn" data-rate="0.65" onclick="setSpeed(this)">0.65×</button>
+        <button class="speed-btn active-speed" data-rate="0.8"  onclick="setSpeed(this)">0.8×</button>
+        <button class="speed-btn" data-rate="1.0"  onclick="setSpeed(this)">1.0×</button>
+        <button class="speed-btn" data-rate="1.2"  onclick="setSpeed(this)">1.2×</button>
+      </div>
+    </div>
+  </div>
+  <div class="rec-area" id="rec-area">
+    <div class="rec-ring" id="rec-ring" onclick="toggleRecord()">
+      <svg id="rec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="22"/>
+        <line x1="8" y1="22" x2="16" y2="22"/>
+      </svg>
+    </div>
+    <div class="rec-hint" id="rec-hint">按下麥克風開始跟讀</div>
+    <div class="rec-sub" id="rec-sub">說完後再按一次停止</div>
+  </div>
+  <div id="result-section" style="display:none;">
+    <div class="transcript-row" id="transcript-row"></div>
+    <div id="ai-loading" class="ai-loading" style="display:none">
+      <div class="ai-spinner"></div>
+      <div class="ai-loading-text" id="ai-loading-text">AI 分析發音中…</div>
+    </div>
+    <div class="sentence-card" id="result-card" style="display:none">
+      <div class="score-header">
+        <div class="score-badge" id="score-badge"></div>
+        <div class="score-info">
+          <div class="score-grade" id="score-grade"></div>
+          <div class="score-sub" id="score-sub"></div>
+        </div>
+      </div>
+      <div class="words-row" id="words-row"></div>
+      <div class="feedback" id="feedback-text"></div>
+    </div>
+    <div class="btn-row" style="position:sticky;bottom:0;background:var(--bg);padding:12px 0 4px;margin-top:12px">
+      <button class="retry-btn" id="retry-btn" onclick="retryRecord()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+        重新錄製
+      </button>
+      <button class="next-btn" id="next-btn" onclick="nextSentence()">
+        <span id="next-label">下一句</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ③ 總結 -->
+<div class="screen summary-screen" id="screen-summary">
+  <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+  <div class="summary-title">練習完成！</div>
+  <div class="summary-subtitle" id="sum-subtitle">今天的發音練習已結束</div>
+  <div class="big-score" id="sum-score">—</div>
+  <div class="big-score-label">今日平均分</div>
+  <div class="metrics-grid">
+    <div class="metric-box"><div class="metric-val" id="sum-perfect">—</div><div class="metric-lbl">優秀句數</div></div>
+    <div class="metric-box"><div class="metric-val" id="sum-time">—</div><div class="metric-lbl">練習時長</div></div>
+    <div class="metric-box"><div class="metric-val" id="sum-streak">—</div><div class="metric-lbl">連續天數</div></div>
+  </div>
+  <div class="sum-btn-row">
+    <button class="change-lang-btn" onclick="goBack()">換語言</button>
+    <button class="restart-btn" onclick="restart()">再練一次</button>
+  </div>
+</div>
+
+<!-- 句子列表 Modal -->
+<div class="modal-overlay hidden" id="modal-overlay" onclick="closeListOutside(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">選擇練習句子</div>
+    <div class="modal-list" id="modal-list"></div>
+  </div>
+</div>
+
+<script>
+const DB = {
+  zh: {
+    name:'普通話', pill:'普通話', ttsLang:'zh-TW', ttsCode:'zh-TW',
+    sets:{
+      free:{
+        name:'免費體驗', nameEn:'Free Trial', icon:'⭐',
+        translations:{ en:['Nice to meet you.','Where is the restroom?',"I'd like a coffee, thanks.",'The weather is really nice today.',"I'm learning Mandarin."], ja:['はじめまして。','トイレはどこですか？','コーヒーを一杯ください。','今日はいい天気ですね。','中国語を勉強しています。'] },
+        sentences:[
+          {text:'你好，很高興認識你。', sub:'Nǐ hǎo, hěn gāoxìng rènshi nǐ.', hint:'初次見面的問候', words:['你好','很','高興','認識','你'], img:'Two friendly people smiling and shaking hands outdoors, warm sunny day, flat illustration style, soft pastel colors'},
+          {text:'請問洗手間在哪裡？',   sub:'Qǐngwèn xǐshǒujiān zài nǎlǐ?',   hint:'詢問廁所位置',   words:['請問','洗手間','在','哪裡'], img:'A person politely asking for directions inside a shopping mall, pointing gesture, flat illustration style, soft colors'},
+          {text:'我想要一杯咖啡，謝謝。',sub:'Wǒ xiǎng yào yī bēi kāfēi, xièxiè.',hint:'點餐常用語',words:['我','想要','一杯','咖啡','謝謝'], img:'A customer ordering a steaming cup of coffee at a cozy cafe counter, barista smiling, flat illustration style'},
+          {text:'今天天氣真的很好。',   sub:'Jīntiān tiānqì zhēn de hěn hǎo.',   hint:'稱讚天氣',       words:['今天','天氣','真的','很好'], img:'A happy person enjoying a beautiful sunny day in a park, blue sky, white clouds, flat illustration style, cheerful colors'},
+          {text:'我在學習說普通話。',   sub:'Wǒ zài xuéxí shuō pǔtōnghuà.',     hint:'說出你的學習目標',words:['我','在','學習','說','普通話'], img:'A student studying Chinese language with books and flashcards at a desk, motivated expression, flat illustration style'}
+        ]
+      }
+    }
+  },
+  en: {
+    name:'English', pill:'英語', ttsLang:'en-US', ttsCode:'en-US',
+    sets:{
+      free:{
+        name:'免費體驗', nameEn:'Free Trial', icon:'⭐',
+        translations:{ zh:['很高興認識你！','可以再說一次嗎？','我想要一杯咖啡，謝謝。','今天天氣真美！','我每天都在學英文。'], ja:['はじめまして！','もう一度言っていただけますか？','コーヒーを一杯ください。','今日は本当にいい天気ですね。','毎日英語を勉強しています。'] },
+        sentences:[
+          {text:'Nice to meet you!',                 sub:'', hint:'初次見面的問候',   words:['Nice','to','meet','you'], img:'Two friendly people smiling and waving hello at a social gathering, warm atmosphere, flat illustration style'},
+          {text:'Could you say that again, please?', sub:'', hint:'請對方重複說一次', words:['Could','say','again','please'], img:'A person leaning forward attentively listening to someone speaking, cupping ear with hand, flat illustration style'},
+          {text:"I'd like a coffee, thank you.",     sub:'', hint:'點餐常用語',       words:["I'd","like","coffee","thank","you"], img:'A person ordering coffee at a modern café, smiling barista handing over a cup, cozy interior, flat illustration style'},
+          {text:'What a beautiful day it is today!', sub:'', hint:'稱讚天氣',         words:['beautiful','day','today'], img:'A joyful person spreading arms wide on a sunny hilltop, blue sky, fluffy clouds, birds flying, flat illustration style'},
+          {text:"I'm learning English every day.",   sub:'', hint:'說出你的學習目標', words:["I'm","learning","English","every","day"], img:'A motivated student with headphones studying English on a laptop, notebook open, cozy room, flat illustration style'}
+        ]
+      },
+      basics:{
+        name:'初學必備30句', nameEn:'30 Essential Phrases', icon:'📚',
+        translations:{
+          zh:['你叫什麼名字？','你是從哪裡來的？','你住在哪裡？','你好嗎？','你呢？','初次見面。','你現在在做什麼？','你會說英語嗎？','你為什麼學習英語？','因為我喜歡英語。','你學習英語多久了？','你的興趣是什麼？','你去過美國嗎？','我可以拍照嗎？','你什麼時候來的？','你喜歡英國料理嗎？','那是什麼意思？','你會游泳嗎？','附近有便利商店嗎？','請再說一次。','這個多少錢？','我想去紐約。','要怎麼去火車站？','是哪一班巴士？','那位是誰？','現在幾點了？','有推薦的餐廳嗎？','我要這個。','買單！','你可以幫我嗎？'],
+          ja:['お名前は何ですか？','どちらのご出身ですか？','どこに住んでいますか？','お元気ですか？','あなたは？','はじめまして。','今何をしていますか？','英語が話せますか？','なぜ英語を勉強していますか？','英語が好きだからです。','英語をどのくらい勉強していますか？','趣味は何ですか？','アメリカへ行ったことがありますか？','写真を撮ってもいいですか？','いつ来ましたか？','イギリス料理は好きですか？','それはどういう意味ですか？','泳げますか？','近くにコンビニはありますか？','もう一度言ってください。','これはいくらですか？','ニューヨークに行きたいです。','駅へはどうやって行きますか？','どのバスですか？','あの方はどなたですか？','今何時ですか？','おすすめのレストランはありますか？','これをください。','お会計をお願いします。','手伝ってもらえますか？']
+        },
+        sentences:[
+          {text:"What's your name?",                       sub:'', hint:'詢問對方名字',       words:['What','your','name'],            img:'Two people introducing themselves, one smiling and asking for the others name, casual friendly setting, flat illustration style'},
+          {text:'Where are you from?',                     sub:'', hint:'詢問對方的出身',     words:['Where','are','you','from'],       img:'Two people chatting, a globe and world map in the background, friendly international conversation, flat illustration style'},
+          {text:'Where do you live?',                      sub:'', hint:'詢問對方住在哪裡',   words:['Where','do','you','live'],        img:'A person pointing to a location on a city map during a friendly conversation, flat illustration style'},
+          {text:'How are you?',                            sub:'', hint:'問候對方近況',       words:['How','are','you'],                img:'Two friends greeting each other cheerfully on a sunny street, warm smiles, flat illustration style'},
+          {text:'And you?',                                sub:'', hint:'反問對方狀況',       words:['And','you'],                      img:'A person smiling and gesturing back to their friend in a conversation, curious and friendly expression, flat illustration style'},
+          {text:'Nice to meet you.',                       sub:'', hint:'初次見面的問候',     words:['Nice','to','meet','you'],         img:'Two people shaking hands warmly at a first meeting, professional yet friendly setting, flat illustration style'},
+          {text:'What are you doing right now?',           sub:'', hint:'詢問對方正在做什麼', words:['What','doing','right','now'],     img:'One person looking curiously at another who is busy with something, casual curious expression, flat illustration style'},
+          {text:'Can you speak English?',                  sub:'', hint:'詢問是否會說英語',   words:['Can','you','speak','English'],    img:'Two people talking with speech bubbles, one showing the English flag, encouraging and curious expressions, flat illustration style'},
+          {text:'Why are you learning English?',           sub:'', hint:'詢問學習英語的原因', words:['Why','learning','English'],       img:'A student surrounded by English books and materials, looking thoughtful and motivated, flat illustration style'},
+          {text:'Because I love movies.',                  sub:'', hint:'說出喜歡英語的原因', words:['Because','love','movies'],        img:'A happy person watching an English movie on screen with popcorn, excited and engaged, flat illustration style'},
+          {text:'How long have you studied English?',      sub:'', hint:'詢問學了多久英語',   words:['How','long','studied','English'], img:'A student with a calendar and study planner on the wall, showing their learning journey over time, flat illustration style'},
+          {text:"What are your hobbies?",                  sub:'', hint:'詢問興趣愛好',       words:['What','hobbies'],                 img:'Two people happily chatting about hobbies, small icons of sports, music, and books floating around, flat illustration style'},
+          {text:'Have you ever been to the US?',           sub:'', hint:'詢問是否去過美國',   words:['Have','ever','been','US'],        img:'A person looking at an America travel poster with the Statue of Liberty, dreaming of visiting, flat illustration style'},
+          {text:'Can I take a photo here?',                sub:'', hint:'詢問是否可以拍照',   words:['Can','take','photo','here'],      img:'A tourist politely asking to take a photo at a famous landmark, holding a camera and smiling, flat illustration style'},
+          {text:'When did you arrive?',                    sub:'', hint:'詢問何時抵達',       words:['When','did','you','arrive'],      img:'A traveler arriving at an airport with luggage, someone greeting them, flat illustration style'},
+          {text:'Do you like American food?',              sub:'', hint:'詢問是否喜歡美式料理', words:['Do','like','American','food'],   img:'A person happily eating a burger and fries, classic American food on the table, flat illustration style'},
+          {text:'What does that mean?',                    sub:'', hint:'詢問某詞的意思',     words:['What','does','that','mean'],      img:'A student pointing at a word in a textbook with a curious and puzzled expression, flat illustration style'},
+          {text:'Can you swim?',                           sub:'', hint:'詢問是否會游泳',     words:['Can','you','swim'],               img:'A person at a swimming pool asking their friend if they can swim, both in swimwear, flat illustration style'},
+          {text:'Is there a convenience store nearby?',   sub:'', hint:'詢問附近是否有便利商店', words:['convenience','store','nearby'], img:'A person looking around a street corner searching for a shop, flat illustration style'},
+          {text:'Could you say that again, please?',      sub:'', hint:'請對方再說一次',     words:['Could','say','again','please'],   img:'A person cupping their ear and leaning forward, politely asking the speaker to repeat, flat illustration style'},
+          {text:'How much does this cost?',               sub:'', hint:'詢問價格',           words:['How','much','does','cost'],       img:'A customer holding up an item in a shop and asking the staff for the price, flat illustration style'},
+          {text:"I'd like to go to New York.",            sub:'', hint:'表達想去某地',       words:["I'd","like","go","New York"],     img:'A traveler looking excitedly at a New York City skyline poster, pointing to it, flat illustration style'},
+          {text:'How do I get to the station?',           sub:'', hint:'詢問如何前往車站',   words:['How','get','to','station'],       img:'A tourist asking a local for directions to the train station in a busy street, flat illustration style'},
+          {text:'Which bus should I take?',               sub:'', hint:'詢問應該搭哪班巴士', words:['Which','bus','should','take'],    img:'A traveler looking at a bus stop schedule board with multiple bus lines, slightly confused, flat illustration style'},
+          {text:'Who is that person?',                    sub:'', hint:'詢問某人是誰',       words:['Who','is','that','person'],       img:'Two people looking across a room at someone, one asking the other who that person is, flat illustration style'},
+          {text:'What time is it now?',                   sub:'', hint:'詢問現在的時間',     words:['What','time','is','now'],         img:'A person checking their watch while asking a friend for the time, flat illustration style'},
+          {text:'Can you recommend a restaurant?',        sub:'', hint:'詢問推薦的餐廳',     words:['recommend','a','restaurant'],     img:'A couple asking a local for a restaurant recommendation, the local pointing down the street happily, flat illustration style'},
+          {text:"I'll have this one, please.",            sub:'', hint:'點餐或購物時使用',   words:["I'll","have","this","please"],    img:'A customer confidently pointing to an item on a menu or in a shop window, flat illustration style'},
+          {text:'Check, please!',                         sub:'', hint:'請求結帳',           words:['Check','please'],                 img:'A customer at a restaurant raising their hand to ask for the bill, waiter approaching with a smile, flat illustration style'},
+          {text:'Could you help me, please?',             sub:'', hint:'請求協助',           words:['Could','help','me','please'],     img:'A person reaching out their hand and politely asking someone for help, warm helpful expression, flat illustration style'}
+        ]
+      }
+    }
+  },
+  ja: {
+    name:'日本語', pill:'日語', ttsLang:'ja-JP', ttsCode:'ja-JP',
+    sets:{
+      free:{
+        name:'免費體驗', nameEn:'Free Trial', icon:'⭐',
+        translations:{ zh:['初次見面，請多指教。','不好意思，車站在哪裡？','請給我一杯咖啡。','今天天氣真好呢。','我在學習日文。'], en:['Nice to meet you.','Excuse me, where is the station?','One coffee, please.','What a nice day today!','I am studying Japanese.'] },
+        sentences:[
+          {text:'はじめまして、よろしくお願いします。', sub:'Hajimemashite, yoroshiku onegaishimasu.', hint:'初次見面的問候', words:['はじめまして','よろしく','お願いします'], img:'Two people bowing politely to each other in a Japanese setting, respectful greeting, flat illustration style, warm colors'},
+          {text:'すみません、駅はどこですか？',         sub:'Sumimasen, eki wa doko desu ka?',         hint:'詢問車站位置',   words:['すみません','駅','どこ','ですか'], img:'A tourist asking a local for directions near a Japanese train station, city street background, flat illustration style'},
+          {text:'コーヒーを一杯ください。',             sub:'Kōhī o ippai kudasai.',                   hint:'點餐常用語',     words:['コーヒー','一杯','ください'], img:'A customer ordering coffee at a charming Japanese café, warm lighting, cup of coffee on counter, flat illustration style'},
+          {text:'今日はとても天気がいいですね。',       sub:'Kyō wa totemo tenki ga ii desu ne.',       hint:'稱讚天氣',       words:['今日','天気','いいですね'], img:'Two friends chatting happily on a sunny Japanese street with cherry blossoms, bright blue sky, flat illustration style'},
+          {text:'日本語を勉強しています。',             sub:'Nihongo o benkyō shite imasu.',             hint:'說出你的學習目標',words:['日本語','勉強','しています'], img:'A student studying Japanese with textbooks and hiragana charts on the wall, focused and happy, flat illustration style'}
+        ]
+      },
+      basics:{
+        name:'初學必備30句', nameEn:'30 Essential Phrases', icon:'📚',
+        translations:{
+          zh:['你叫什麼名字？','你是從哪裡來的？','你住在哪裡？','你好嗎？','你呢？','初次見面。','你在做什麼？','你會說日語嗎？','你為什麼學習日語？','是那個原因的關係。','你學習日語多久了？','你的興趣是什麼？','你做過那件事嗎？','我可以做這個嗎？','你什麼時候做了那件事？','你喜歡那個嗎？','那是什麼意思？','你會做嗎？','這裡有那個嗎？','請再說一次。','那個多少錢？','我想去那裡。','要怎麼到那裡？','是哪個？','那位是誰？','現在幾點？','有推薦的料理嗎？','我要這個。','請結帳。','你可以幫我嗎？'],
+          en:['What is your name?','Where are you from?','Where do you live?','How are you?','And you?','Nice to meet you.','What are you doing?','Can you speak Japanese?','Why are you learning Japanese?','It is because of that reason.','How long have you been studying Japanese?','What are your hobbies?','Have you done that before?','May I do this?','When did you do that?','Do you like that?','What does that mean?','Can you do that?','Is there one here?','Please say it again.','How much is that?','I want to go there.','How do I get there?','Which one is it?','Who is that person?','What time is it now?','Do you have any recommended dishes?','I will have this.','Check, please.','Could you help me?']
+        },
+        sentences:[
+          {text:'お名前は何ですか？',               sub:'Onamae wa nan desu ka?',                    hint:'詢問對方名字',     words:['お名前','何','ですか'],              img:'Two people introducing themselves, one asking the others name with a friendly smile, Japanese setting, flat illustration style'},
+          {text:'どちらのご出身ですか？',           sub:'Dochira no go-shusshin desu ka?',           hint:'詢問對方的出身',   words:['どちら','ご出身','ですか'],          img:'Two people having a conversation, globe and map in background suggesting international origins, flat illustration style'},
+          {text:'どこに住んでいますか？',           sub:'Doko ni sunde imasu ka?',                   hint:'詢問對方住在哪裡', words:['どこ','住んでいます','ですか'],      img:'A person pointing to a spot on a city map, friendly conversation, flat illustration style'},
+          {text:'お元気ですか？',                   sub:'Ogenki desu ka?',                           hint:'問候對方身體狀況', words:['お元気','ですか'],                  img:'Two friends greeting each other warmly on a sunny street, both smiling and looking healthy, flat illustration style'},
+          {text:'あなたは？',                       sub:'Anata wa?',                                 hint:'反問對方狀況',     words:['あなた','は'],                      img:'A person turning to ask a friend, gesturing towards them with a curious smile, flat illustration style'},
+          {text:'はじめまして。',                   sub:'Hajimemashite.',                            hint:'初次見面的打招呼', words:['はじめまして'],                     img:'Two people meeting for the first time, bowing slightly with warm smiles, Japanese office setting, flat illustration style'},
+          {text:'今、何をしていますか？',           sub:'Ima, nani wo shite imasu ka?',              hint:'詢問對方現在在做什麼', words:['今','何','して','ますか'],         img:'One person looking curiously at another who is busy working on a laptop, flat illustration style'},
+          {text:'日本語が話せますか？',             sub:'Nihongo ga hanasemasu ka?',                 hint:'詢問是否會說日語', words:['日本語','話せます','ですか'],        img:'Two people talking, speech bubbles showing Japanese characters, curious and encouraging expressions, flat illustration style'},
+          {text:'なぜ日本語を勉強していますか？',   sub:'Naze Nihongo wo benkyō shite imasu ka?',    hint:'詢問學習日語的原因', words:['なぜ','日本語','勉強','ますか'],     img:'A student surrounded by Japanese study materials looking thoughtful and motivated, flat illustration style'},
+          {text:'アニメが好きだからです。',         sub:'Anime ga suki dakara desu.',                hint:'表達喜歡動漫的原因', words:['アニメ','好き','だから','です'],     img:'A happy person watching anime on screen surrounded by colorful anime posters, flat illustration style'},
+          {text:'日本語をどのくらい勉強していますか？', sub:'Nihongo wo dono kurai benkyō shite imasu ka?', hint:'詢問學了多久', words:['どのくらい','勉強','ますか'],     img:'A student with a calendar and study timeline on the wall, showing progress over time, flat illustration style'},
+          {text:'趣味は何ですか？',                 sub:'Shumi wa nan desu ka?',                     hint:'詢問興趣愛好',     words:['趣味','何','ですか'],                img:'Two people chatting happily about hobbies, icons of various activities floating around them, flat illustration style'},
+          {text:'日本へ行ったことがありますか？',   sub:'Nihon e itta koto ga arimasu ka?',          hint:'詢問是否去過日本', words:['日本','行った','ことがありますか'],  img:'A person looking at a Japan travel poster with Mount Fuji, dreaming of visiting, flat illustration style'},
+          {text:'写真を撮ってもいいですか？',       sub:'Shashin wo totte mo ii desu ka?',           hint:'詢問是否可以拍照', words:['写真','撮っても','いいですか'],      img:'A tourist politely asking to take a photo at a beautiful Japanese landmark, smiling and holding a camera, flat illustration style'},
+          {text:'いつ日本に来ましたか？',           sub:'Itsu Nihon ni kimashita ka?',               hint:'詢問何時來日本',   words:['いつ','日本','来ましたか'],          img:'A traveler arriving at a Japanese airport with luggage, excited expression, flat illustration style'},
+          {text:'日本料理は好きですか？',           sub:'Nihon ryōri wa suki desu ka?',              hint:'詢問是否喜歡日本料理', words:['日本料理','好き','ですか'],        img:'A person happily eating sushi and ramen, delicious Japanese food spread on the table, flat illustration style'},
+          {text:'それはどういう意味ですか？',       sub:'Sore wa dō iu imi desu ka?',               hint:'詢問某詞的含義',   words:['それ','どういう意味','ですか'],      img:'A student pointing at a word in a Japanese textbook with a puzzled but curious expression, flat illustration style'},
+          {text:'漢字が読めますか？',               sub:'Kanji ga yomemasu ka?',                     hint:'詢問是否能讀漢字', words:['漢字','読めます','ですか'],          img:'A person looking at kanji characters on a board, concentrating and studying, flat illustration style'},
+          {text:'ここにコンビニはありますか？',     sub:'Koko ni konbini wa arimasu ka?',            hint:'詢問附近是否有便利商店', words:['ここ','コンビニ','ありますか'],   img:'A person looking around a street corner asking for directions to a convenience store, flat illustration style'},
+          {text:'もう一度言ってください。',         sub:'Mō ichido itte kudasai.',                   hint:'請對方再說一次',   words:['もう一度','言って','ください'],      img:'A person cupping their ear and leaning forward, politely asking the speaker to repeat, flat illustration style'},
+          {text:'これはいくらですか？',             sub:'Kore wa ikura desu ka?',                    hint:'詢問某物的價格',   words:['これ','いくら','ですか'],            img:'A customer at a Japanese shop holding up an item and asking the shopkeeper for the price, flat illustration style'},
+          {text:'新宿に行きたいです。',             sub:'Shinjuku ni ikitai desu.',                  hint:'表達想去某地',     words:['新宿','行きたい','です'],            img:'A tourist looking at a Tokyo map, pointing excitedly at Shinjuku area, flat illustration style'},
+          {text:'渋谷へはどうやって行きますか？',   sub:'Shibuya e wa dō yatte ikimasu ka?',         hint:'詢問如何前往',     words:['渋谷','どうやって','行きますか'],    img:'A person asking for directions at a Tokyo train station, station staff pointing the way, flat illustration style'},
+          {text:'どの電車ですか？',                 sub:'Dono densha desu ka?',                      hint:'詢問是哪一班電車', words:['どの','電車','ですか'],              img:'A traveler looking at a train schedule board with multiple train lines, slightly confused, flat illustration style'},
+          {text:'あの方はどなたですか？',           sub:'Ano kata wa donata desu ka?',               hint:'詢問某人是誰',     words:['あの方','どなた','ですか'],          img:'Two people looking across the room at someone, one asking the other who that person is, flat illustration style'},
+          {text:'今、何時ですか？',                 sub:'Ima, nanji desu ka?',                       hint:'詢問現在的時間',   words:['今','何時','ですか'],                img:'A person looking at their watch or phone to check the time, asking a friend nearby, flat illustration style'},
+          {text:'おすすめの料理はありますか？',     sub:'Osusume no ryōri wa arimasu ka?',           hint:'詢問推薦的料理',   words:['おすすめ','料理','ありますか'],      img:'A customer at a Japanese restaurant asking the waiter for recommendations, menu in hand, flat illustration style'},
+          {text:'これをください。',                 sub:'Kore wo kudasai.',                          hint:'點餐或購物時使用', words:['これ','を','ください'],              img:'A customer pointing to an item in a shop or on a menu and ordering it confidently, flat illustration style'},
+          {text:'お会計をお願いします。',           sub:'Okaikei wo onegaishimasu.',                 hint:'請求結帳',         words:['お会計','お願いします'],            img:'A customer at a Japanese restaurant raising a hand to ask for the bill, waiter approaching, flat illustration style'},
+          {text:'荷物を持ってもらえますか？',       sub:'Nimotsu wo motte moraemasu ka?',            hint:'請求協助拿行李',   words:['荷物','持って','もらえますか'],      img:'A traveler with heavy luggage asking someone for help carrying bags, helpful person reaching out, flat illustration style'}
+        ]
+      }
+    }
+  },
+  de: {
+    name:'Deutsch', pill:'德語', ttsLang:'de-DE', ttsCode:'de-DE',
+    sets:{
+      free:{
+        name:'免費體驗', nameEn:'Free Trial', icon:'⭐',
+        translations:{
+          zh:['很高興認識你！','廁所在哪裡？','我想要一杯咖啡，謝謝。','今天天氣真好！','我正在學習德語。'],
+          en:['Nice to meet you!','Where is the restroom?','I would like a coffee, please.','What beautiful weather today!','I am learning German.'],
+          ja:['はじめまして！','トイレはどこですか？','コーヒーを一杯ください。','今日は良い天気ですね！','ドイツ語を勉強しています。']
+        },
+        sentences:[
+          {text:'Schön, Sie kennenzulernen!',              sub:'Shern, Zee keh-nen-tsu-ler-nen',              hint:'初次見面的問候', words:['Schön','Sie','kennenzulernen'],    img:'Two friendly people shaking hands and smiling warmly at a first meeting, European city background, flat illustration style, soft colors'},
+          {text:'Entschuldigung, wo ist die Toilette?',    sub:'Ent-shul-di-gung, vo ist dee Toa-let-teh',    hint:'詢問廁所位置',   words:['Entschuldigung','wo','Toilette'],  img:'A polite person asking for directions inside a European building, helpful staff pointing the way, flat illustration style'},
+          {text:'Ich hätte gerne einen Kaffee, bitte.',    sub:'Ikh het-teh ger-neh eye-nen Ka-feh, bi-teh',  hint:'點餐常用語',     words:['Ich','hätte','Kaffee','bitte'],   img:'A customer ordering coffee at a cozy German café, warm interior with pastries on counter, flat illustration style'},
+          {text:'Das Wetter heute ist wirklich schön!',    sub:'Das Vet-ter hoy-teh ist virk-likh shern',     hint:'稱讚天氣',       words:['Wetter','heute','wirklich','schön'], img:'A happy person enjoying sunny weather in a charming German town square, blue sky and flowers, flat illustration style'},
+          {text:'Ich lerne gerade Deutsch.',               sub:'Ikh ler-neh ga-ra-deh Doytsh',               hint:'說出你的學習目標',words:['Ich','lerne','Deutsch'],          img:'A motivated student studying German with textbooks and a German flag on the desk, focused and happy, flat illustration style'}
+        ]
+      }
+    }
+  },
+  fr: {
+    name:'Français', pill:'法語', ttsLang:'fr-FR', ttsCode:'fr-FR',
+    sets:{
+      free:{
+        name:'免費體驗', nameEn:'Free Trial', icon:'⭐',
+        translations:{
+          zh:['很高興認識你！','廁所在哪裡？','我想要一杯咖啡，謝謝。','今天天氣真好！','我正在學習法語。'],
+          en:['Nice to meet you!','Where is the restroom?','I would like a coffee, please.','What lovely weather today!','I am learning French.'],
+          ja:['はじめまして！','トイレはどこですか？','コーヒーを一杯ください。','今日は素晴らしい天気ですね！','フランス語を勉強しています。']
+        },
+        sentences:[
+          {text:'Enchanté de faire votre connaissance !',  sub:'On-shon-teh duh fair vot-ruh ko-neh-sons',   hint:'初次見面的問候', words:['Enchanté','faire','connaissance'],   img:'Two elegant people greeting each other warmly in a Parisian setting, smiling and shaking hands, flat illustration style, soft colors'},
+          {text:'Excusez-moi, où sont les toilettes ?',    sub:'Ex-kü-zeh-mwa, oo son leh twa-let',          hint:'詢問廁所位置',   words:['Excusez-moi','où','toilettes'],     img:'A polite person asking for directions inside a French building, helpful person pointing the way, flat illustration style'},
+          {text:"Je voudrais un café, s'il vous plaît.",   sub:"Zhuh voo-dreh un ka-feh, sil voo pleh",      hint:'點餐常用語',     words:['Je','voudrais','café','plaît'],     img:'A customer ordering coffee at a charming Parisian café with croissants on the counter, warm atmosphere, flat illustration style'},
+          {text:'Il fait vraiment beau temps aujourd\'hui !', sub:"Il feh vreh-mon boh ton o-zhoor-dwee",     hint:'稱讚天氣',       words:['beau','temps',"aujourd'hui"],      img:'A joyful person strolling along the Seine river on a sunny day in Paris, Eiffel Tower in background, flat illustration style'},
+          {text:"J'apprends le français en ce moment.",    sub:"Zha-pron luh fron-seh on suh mo-mon",        hint:'說出你的學習目標',words:["J'apprends","français","moment"],  img:'A student studying French with a beret, textbooks and Eiffel Tower poster on the wall, cheerful expression, flat illustration style'}
+        ]
+      }
+    }
+  }
+};
+
+const PASS_SCORE = 60;
+let activeLang=null, activeSet='free', nativeLang='zh', showTranslation=true;
+let current=0, scores={}, bestScores={};
+let mediaRecorder=null, audioChunks=[], isRecording=false;
+let startTime=Date.now(), streak=3;
+let geminiKey='';
+
+// Central accessor — all code uses this instead of DB[activeLang].sentences
+function getLangSet(){ return DB[activeLang]?.sets?.[activeSet] || DB[activeLang]?.sets?.free; }
+
+const I18N = {
+  zh: {
+    appTitle:'發音練習', appSub:'每天 5–10 分鐘，累積發音實力',
+    learnLabel:'🎯 學習語言', nativeLabel:'🌐 母語（翻譯語言）',
+    startBtn:'開始練習', backBtn:'換語言',
+    listBtn:'選句', keyTitle:'輸入 Gemini API Key',
+    keyDesc:'前往 aistudio.google.com 免費取得 API Key，輸入後會存在本機。',
+    keyPlaceholder:'AIza...', keySave:'儲存並開始', keyNote:'Key 只存在你的裝置，不會傳送到其他地方',
+    streakLabel:'天連續',
+    sentenceOf:(c,t)=>`第 ${c} 句，共 ${t} 句`,
+    playBtn:'聽範例發音', playAgain:'再聽一次', playing:'播放中…',
+    waitPlay:'播放結束後才能錄音',
+    tapRec:'按下麥克風開始跟讀', tapStop:'說完後再按一次停止',
+    recording:'錄音中…', processing:'處理中…', analysing:'Gemini 聆聽分析中…',
+    noSpeech:'未偵測到聲音，請再試一次', noMic:'請允許麥克風權限後重試',
+    retryBtn:'重新錄製', nextBtn:'下一句', finalBtn:'查看今日結果',
+    aiHeard:'AI 聽到', playMyRec:'聽自己的錄音',
+    scoreLocked:(min)=>`分數需達 ${min} 分才能繼續`,
+    scoreGood:'優秀', scoreFine:'不錯', scoreOk:'加油', scoreLow:'再試試',
+    hideBtn:'隱藏', showBtn:'顯示',
+    chooseList:'選擇練習句子',
+    summaryTitle:'練習完成！', summarySub:'今天的發音練習已結束',
+    avgScore:'今日平均分', perfectLabel:'優秀句數', timeLabel:'練習時長',
+    streakLabelSum:'連續天數', minUnit:'分鐘',
+    changeLang:'換語言', restartBtn:'再練一次',
+  },
+  en: {
+    appTitle:'Pronunciation', appSub:'5–10 min a day builds fluency',
+    learnLabel:'🎯 Learning language', nativeLabel:'🌐 Native language',
+    startBtn:'Start Practice', backBtn:'Change language',
+    listBtn:'Sentences', keyTitle:'Enter Gemini API Key',
+    keyDesc:'Get a free API Key at aistudio.google.com. Saved locally on your device.',
+    keyPlaceholder:'AIza...', keySave:'Save & Start', keyNote:'Key stays on your device only',
+    streakLabel:' day streak',
+    sentenceOf:(c,t)=>`Sentence ${c} of ${t}`,
+    playBtn:'Play example', playAgain:'Play again', playing:'Playing…',
+    waitPlay:'Wait for playback to finish…',
+    tapRec:'Tap to start recording', tapStop:'Tap again when done',
+    recording:'Recording…', processing:'Processing…', analysing:'Gemini analysing audio…',
+    noSpeech:'No speech detected. Try again.', noMic:'Please allow microphone access',
+    retryBtn:'Retry', nextBtn:'Next', finalBtn:'See results',
+    aiHeard:'AI heard', playMyRec:'Play my recording',
+    scoreLocked:(min)=>`Need ${min}+ to continue`,
+    scoreGood:'Excellent', scoreFine:'Good', scoreOk:'Keep going', scoreLow:'Try again',
+    hideBtn:'Hide', showBtn:'Show',
+    chooseList:'Choose a sentence',
+    summaryTitle:'Practice complete!', summarySub:"Today's session is done",
+    avgScore:'Avg score today', perfectLabel:'Excellent', timeLabel:'Duration',
+    streakLabelSum:'Day streak', minUnit:'min',
+    changeLang:'Change language', restartBtn:'Practice again',
+  },
+  ja: {
+    appTitle:'発音練習', appSub:'毎日5〜10分で上達',
+    learnLabel:'🎯 学習言語', nativeLabel:'🌐 母語',
+    startBtn:'練習を始める', backBtn:'言語を変える',
+    listBtn:'文を選ぶ', keyTitle:'Gemini APIキーを入力',
+    keyDesc:'aistudio.google.comで無料のAPIキーを取得できます。',
+    keyPlaceholder:'AIza...', keySave:'保存して開始', keyNote:'キーはデバイスにのみ保存されます',
+    streakLabel:'日連続',
+    sentenceOf:(c,t)=>`${c} / ${t} 文目`,
+    playBtn:'発音を聞く', playAgain:'もう一度', playing:'再生中…',
+    waitPlay:'再生終了後に録音できます',
+    tapRec:'マイクをタップして読む', tapStop:'終わったらもう一度タップ',
+    recording:'録音中…', processing:'処理中…', analysing:'Gemini が音声を分析中…',
+    noSpeech:'音声が検出されません。もう一度試してください。', noMic:'マイクのアクセスを許可してください',
+    retryBtn:'再録音', nextBtn:'次へ', finalBtn:'結果を見る',
+    aiHeard:'AIが聞いた', playMyRec:'録音を聴く',
+    scoreLocked:(min)=>`${min}点以上で次へ進めます`,
+    scoreGood:'優秀', scoreFine:'良い', scoreOk:'頑張れ', scoreLow:'もう一度',
+    hideBtn:'隠す', showBtn:'見せる',
+    chooseList:'文を選ぶ',
+    summaryTitle:'練習完了！', summarySub:'今日のセッションが終わりました',
+    avgScore:'今日の平均点', perfectLabel:'優秀な文', timeLabel:'練習時間',
+    streakLabelSum:'連続日数', minUnit:'分',
+    changeLang:'言語を変える', restartBtn:'もう一度練習',
+  }
+};
+function t(key, ...args){
+  const s = I18N[nativeLang]?.[key] || I18N.zh[key];
+  return typeof s === 'function' ? s(...args) : (s || key);
+}
+
+/* ── API Key setup ── */
+function loadKey(){ geminiKey=localStorage.getItem('gemini_key')||''; }
+function saveKey(){
+  const k=document.getElementById('api-key-input').value.trim();
+  if(!k){ alert('請輸入 API Key'); return; }
+  geminiKey=k; localStorage.setItem('gemini_key',k);
+  document.getElementById('key-modal').classList.add('hidden');
+}
+function openKeyModal(){
+  const modal = document.getElementById('key-modal');
+  if(!modal) return;
+  // Update modal text with current language
+  const titleEl = modal.querySelector('.modal-title');
+  if(titleEl) titleEl.textContent = t('keyTitle');
+  const descEl = modal.querySelector('p');
+  if(descEl) descEl.innerHTML = t('keyDesc');
+  const saveBtn = modal.querySelector('button');
+  if(saveBtn) saveBtn.textContent = t('keySave');
+  modal.classList.remove('hidden');
+  document.getElementById('api-key-input').value=geminiKey;
+}
+function closeKeyModal(){ if(geminiKey) document.getElementById('key-modal').classList.add('hidden'); }
+
+/* ── Screen helpers ── */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function selectLang(el){
+  document.querySelectorAll('.lang-option').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  activeLang=el.dataset.lang;
+  // Hide same-language native chip
+  document.querySelectorAll('.native-chip').forEach(o=>{
+    o.style.display = o.dataset.native===activeLang ? 'none' : 'flex';
+  });
+  if(nativeLang===activeLang){
+    nativeLang = activeLang==='zh' ? 'en' : 'zh';
+    document.querySelectorAll('.native-chip').forEach(o=>{
+      o.classList.toggle('selected-native', o.dataset.native===nativeLang);
+    });
+  }
+  // Show set selector if language has multiple sets
+  const sets = DB[activeLang]?.sets || {};
+  const setKeys = Object.keys(sets);
+  const setSection = document.getElementById('set-section');
+  const setOptions = document.getElementById('set-options');
+  if(setKeys.length > 1){
+    setSection.style.display = 'block';
+    setOptions.innerHTML = '';
+    // Reset to free if current activeSet not available
+    if(!sets[activeSet]) activeSet = 'free';
+    setKeys.forEach(key=>{
+      const s = sets[key];
+      const count = s.sentences.length;
+      const div = document.createElement('div');
+      div.className = 'set-option' + (key===activeSet ? ' selected-set' : '');
+      div.dataset.set = key;
+      div.innerHTML = `
+        <span class="set-icon">${s.icon||'📝'}</span>
+        <div class="set-info">
+          <div class="set-name">${s.name}</div>
+          <div class="set-count">${count} 句</div>
+        </div>`;
+      div.onclick = () => selectSet(div, key);
+      setOptions.appendChild(div);
+    });
+  } else {
+    setSection.style.display = 'none';
+    activeSet = setKeys[0] || 'free';
+  }
+  document.getElementById('start-btn').disabled=false;
+}
+
+function selectSet(el, key){
+  activeSet = key;
+  document.querySelectorAll('.set-option').forEach(o=>o.classList.remove('selected-set'));
+  el.classList.add('selected-set');
+}
+function applyI18n(){
+  // Helper to safely set textContent
+  const setText = (sel, val, byId=false) => {
+    const el = byId ? document.getElementById(sel) : document.querySelector(sel);
+    if(el) el.textContent = val;
+  };
+  // Picker screen
+  setText('.picker-title', t('appTitle'));
+  setText('.picker-sub', t('appSub'));
+  setText('start-btn', t('startBtn'), true);
+  const labels = document.querySelectorAll('.section-label');
+  if(labels[0]) labels[0].textContent = t('learnLabel');
+  if(labels[1]) labels[1].textContent = t('nativeLabel');
+  // Practice top bar back button
+  const backBtns = document.querySelectorAll('.back-btn');
+  backBtns.forEach(b => {
+    const last = b.childNodes[b.childNodes.length-1];
+    if(last) last.textContent = ' '+t('backBtn');
+  });
+  // Summary screen
+  setText('.summary-title', t('summaryTitle'));
+  setText('.big-score-label', t('avgScore'));
+  const metricLbls = document.querySelectorAll('.metric-lbl');
+  if(metricLbls[0]) metricLbls[0].textContent = t('perfectLabel');
+  if(metricLbls[1]) metricLbls[1].textContent = t('timeLabel');
+  if(metricLbls[2]) metricLbls[2].textContent = t('streakLabelSum');
+  setText('.change-lang-btn', t('changeLang'));
+  setText('.restart-btn', t('restartBtn'));
+  // key-modal title updated in openKeyModal() since modal may not be in DOM yet
+}
+
+function selectNative(el){
+  document.querySelectorAll('.native-chip').forEach(o=>o.classList.remove('selected-native'));
+  el.classList.add('selected-native');
+  nativeLang = el.dataset.native;
+  applyI18n();
+}
+function toggleTranslation(){
+  showTranslation=!showTranslation;
+  const transEl=document.getElementById('sent-translation');
+  const btn=document.getElementById('trans-toggle');
+  transEl.style.visibility = showTranslation ? 'visible' : 'hidden';
+  btn.textContent = showTranslation ? t('hideBtn') : t('showBtn');
+}
+function startPractice(){
+  if(!activeLang)return;
+  if(!geminiKey){ openKeyModal(); return; }
+  current=0; scores={}; bestScores={}; startTime=Date.now();
+  // Clear caches from previous language to free memory
+  // (keep current activeLang cache if same language restarted)
+  const prevLang = document.getElementById('lang-pill').textContent;
+  if(prevLang !== DB[activeLang]?.pill){
+    Object.keys(ttsCache).forEach(k=>{ if(!k.startsWith(activeLang)){ URL.revokeObjectURL(ttsCache[k]); delete ttsCache[k]; } });
+    Object.keys(imgCache).forEach(k=>{ if(!k.startsWith(activeLang+'-')) delete imgCache[k]; });
+  }
+  document.getElementById('lang-pill').textContent=DB[activeLang].pill;
+  applyI18n();
+  loadSentence();
+  showScreen('screen-practice');
+}
+function goBack(){
+  if(isRecording) stopRecording(true);
+  showScreen('screen-picker');
+}
+function restart(){
+  current=0; scores={}; bestScores={}; startTime=Date.now();
+  loadSentence(); showScreen('screen-practice');
+}
+
+/* ── Sentence list modal ── */
+function openList(){
+  const set=getLangSet();
+  document.getElementById('modal-title').textContent=t('chooseList');
+  const list=document.getElementById('modal-list');
+  list.innerHTML='';
+  set.sentences.forEach((s,i)=>{
+    const best=bestScores[i];
+    let scoreHtml='';
+    if(best!==undefined){
+      const cls=best>=85?'chip-good':best>=60?'chip-ok':'chip-bad';
+      scoreHtml=`<span class="modal-item-score ${cls}">${best}分</span>`;
+    }
+    const item=document.createElement('div');
+    item.className='modal-item'+(i===current?' active-sent':'');
+    item.innerHTML=`
+      <div class="modal-item-num">${i+1}</div>
+      <div class="modal-item-text">
+        <div class="modal-item-main">${s.text}</div>
+        <div class="modal-item-sub">${s.hint}</div>
+      </div>${scoreHtml}`;
+    item.onclick=()=>{ jumpTo(i); closeList(); };
+    list.appendChild(item);
+  });
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeList(){ document.getElementById('modal-overlay').classList.add('hidden'); }
+function closeListOutside(e){ if(e.target===document.getElementById('modal-overlay'))closeList(); }
+function jumpTo(i){ current=i; loadSentence(); }
+
+/* ── Illustration (Gemini Imagen) ── */
+const imgCache = {};
+
+async function callImageAPI(prompt){
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiKey}`,
+    {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{parts:[{text: prompt + '. Illustration only, no text or words anywhere in the image.'}]}],
+        generationConfig:{ responseModalities:['IMAGE'] }  // IMAGE only — no text bleed
+      })
+    }
+  );
+  if(!res.ok){ const e=await res.json(); throw new Error(e.error?.message||`HTTP ${res.status}`); }
+  const data = await res.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const imgPart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
+  if(!imgPart) throw new Error('no image part in response');
+  return `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+}
+
+async function generateIllustration(langKey, setKey, index){
+  const cacheKey = `${langKey}-${setKey}-${index}`;
+  const imgEl = document.getElementById('illus-img');
+  const skeleton = document.getElementById('illus-skeleton');
+  const errEl = document.getElementById('illus-error');
+  const wrap = document.getElementById('illus-wrap');
+
+  imgEl.style.display = 'none';
+  errEl.style.display = 'none';
+  skeleton.style.display = 'flex';
+  wrap.style.minHeight = '140px';
+
+  if(imgCache[cacheKey]){
+    imgEl.src = imgCache[cacheKey];
+    imgEl.style.display = 'block';
+    skeleton.style.display = 'none';
+    wrap.style.minHeight = '0';
+    return;
+  }
+
+  const prompt = DB[langKey]?.sets?.[setKey]?.sentences[index]?.img;
+  if(!prompt || !geminiKey){
+    skeleton.style.display = 'none';
+    wrap.style.minHeight = '0';
+    return;
+  }
+
+  try {
+    const dataUrl = await callImageAPI(prompt);
+    imgCache[cacheKey] = dataUrl;
+    imgEl.src = dataUrl;
+    imgEl.style.display = 'block';
+    skeleton.style.display = 'none';
+    wrap.style.minHeight = '0';
+  } catch(e) {
+    skeleton.style.display = 'none';
+    wrap.style.minHeight = '60px';
+    errEl.style.display = 'block';
+    errEl.textContent = '🖼️ 插圖暫時無法顯示';
+    console.warn('Illustration error:', e.message);
+  }
+}
+
+function prefetchNext(){
+  const set=getLangSet();
+  if(current+1 < set.sentences.length) generateIllustrationBg(activeLang, activeSet, current+1);
+}
+async function generateIllustrationBg(langKey, setKey, index){
+  const cacheKey = `${langKey}-${setKey}-${index}`;
+  if(imgCache[cacheKey] || !geminiKey) return;
+  const prompt = DB[langKey]?.sets?.[setKey]?.sentences[index]?.img;
+  if(!prompt) return;
+  try {
+    imgCache[cacheKey] = await callImageAPI(prompt);
+  } catch(e) {}
+}
+function loadSentence(){
+  const set=getLangSet(), s=set.sentences[current], total=set.sentences.length;
+  document.getElementById('sent-text').textContent=s.text;
+  document.getElementById('sent-pinyin').textContent=s.sub;
+  document.getElementById('sent-pinyin').style.display=s.sub?'block':'none';
+  document.getElementById('sent-hint').textContent=s.hint;
+
+  // Translation
+  const transList = set.translations?.[nativeLang];
+  const transText = transList?.[current] || '';
+  const transEl = document.getElementById('sent-translation');
+  const transRow = document.getElementById('translation-row');
+  if(transText){
+    transEl.textContent = transText;
+    transEl.style.visibility = showTranslation ? 'visible' : 'hidden';
+    document.getElementById('trans-toggle').textContent = showTranslation ? t('hideBtn') : t('showBtn');
+    transRow.style.display = 'flex';
+  } else {
+    transRow.style.display = 'none';
+  }
+
+  document.getElementById('prog-label').textContent = t('sentenceOf', current+1, total);
+  document.getElementById('prog-bar').style.width=(current/total*100)+'%';
+
+  const playSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+  document.getElementById('play-btn').innerHTML=playSvg+' '+t('playBtn');
+  document.getElementById('play-btn').disabled=false;
+
+  document.getElementById('rec-area').style.display='flex';
+  document.getElementById('result-section').style.display='none';
+  document.getElementById('ai-loading').style.display='none';
+  document.getElementById('result-card').style.display='none';
+  document.getElementById('transcript-row').innerHTML='';
+  document.getElementById('rec-ring').classList.remove('recording');
+  document.getElementById('rec-ring').style.opacity='1';
+  document.getElementById('rec-ring').style.pointerEvents='auto';
+  setRecIcon('mic');
+  document.getElementById('rec-hint').textContent = t('tapRec');
+  document.getElementById('rec-sub').textContent = t('tapStop');
+
+  // Generate illustration and pre-fetch next
+  generateIllustration(activeLang, activeSet, current);
+  setTimeout(()=>prefetchNext(), 2000);
+}
+
+function setRecIcon(type){
+  document.getElementById('rec-icon').innerHTML=type==='mic'
+    ?`<path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>`
+    :`<rect x="6" y="6" width="12" height="12" rx="2"/>`;
+}
+
+/* ── TTS (Gemini TTS API) ── */
+let ttsAudio = null;
+let ttsSpeed = 0.8;  // default playback rate
+const ttsCache = {}; // cache audio URLs per lang-index
+
+function setSpeed(btn){
+  ttsSpeed = parseFloat(btn.dataset.rate);
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active-speed'));
+  btn.classList.add('active-speed');
+  // If currently playing, apply immediately
+  if(ttsAudio) ttsAudio.playbackRate = ttsSpeed;
+}
+
+function setRecLock(locked){
+  const ring = document.getElementById('rec-ring');
+  ring.style.opacity = locked ? '0.35' : '1';
+  ring.style.pointerEvents = locked ? 'none' : 'auto';
+  document.getElementById('rec-hint').textContent = locked ? t('waitPlay') : t('tapRec');
+}
+
+// Convert raw PCM (L16) to WAV blob so browser can play it
+function pcmToWav(base64pcm, sampleRate=24000, channels=1){
+  const raw = Uint8Array.from(atob(base64pcm), c=>c.charCodeAt(0));
+  const numSamples = raw.byteLength / 2;
+  const buf = new ArrayBuffer(44 + raw.byteLength);
+  const view = new DataView(buf);
+  const w = (off,val,bytes)=>{ for(let i=0;i<bytes;i++){ view.setUint8(off+i,val&0xff); val>>=8; } };
+  const ws = (off,str)=>{ for(let i=0;i<str.length;i++) view.setUint8(off+i,str.charCodeAt(i)); };
+  ws(0,'RIFF'); w(4,36+raw.byteLength,4); ws(8,'WAVE');
+  ws(12,'fmt '); w(16,16,4); w(20,1,2); w(22,channels,2);
+  w(24,sampleRate,4); w(28,sampleRate*channels*2,4);
+  w(32,channels*2,2); w(34,16,2);
+  ws(36,'data'); w(40,raw.byteLength,4);
+  new Uint8Array(buf).set(raw,44);
+  return new Blob([buf],{type:'audio/wav'});
+}
+
+async function fetchTTSAudio(text, langCode){
+  // Map lang code to Gemini TTS language code and a good voice
+  const voiceMap = {
+    'zh-TW':{ lang:'cmn-TW', voice:'Zephyr' },
+    'en-US':{ lang:'en-US', voice:'Puck'   },
+    'ja-JP':{ lang:'ja-JP', voice:'Kore'   },
+    'de-DE':{ lang:'de-DE', voice:'Charon' },
+    'fr-FR':{ lang:'fr-FR', voice:'Aoede'  },
+  };
+  const cfg = voiceMap[langCode] || { lang:'en-US', voice:'Puck' };
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${geminiKey}`,
+    {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{ parts:[{ text: `Read this sentence naturally and clearly: ${text}` }] }],
+        generationConfig:{
+          responseModalities:['AUDIO'],
+          speechConfig:{
+            voiceConfig:{ prebuiltVoiceConfig:{ voiceName: cfg.voice } },
+            languageCode: cfg.lang
+          }
+        }
+      })
+    }
+  );
+  if(!res.ok){ const e=await res.json(); throw new Error(e.error?.message||`HTTP ${res.status}`); }
+  const data = await res.json();
+  const part = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+  if(!part) throw new Error('No audio in response');
+  const wav = pcmToWav(part.data);
+  return URL.createObjectURL(wav);
+}
+
+function playSentence(){
+  const langDB=DB[activeLang], set=getLangSet(), s=set.sentences[current];
+  const btn=document.getElementById('play-btn');
+  const pauseSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></svg>`;
+  const playSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+
+  window.speechSynthesis.cancel();
+  if(ttsAudio){ ttsAudio.pause(); ttsAudio=null; }
+  if(!isRecording) setRecLock(true);
+  btn.innerHTML = pauseSvg+' '+t('playing');
+
+  const cacheKey = `${activeLang}-${current}`;
+  const onDone = () => { btn.innerHTML = playSvg+' '+t('playAgain'); if(!isRecording) setRecLock(false); };
+
+  const playUrl = (url) => {
+    ttsAudio = new Audio(url);
+    ttsAudio.playbackRate = ttsSpeed;
+    ttsAudio.onended = () => { onDone(); ttsAudio=null; };
+    ttsAudio.onerror = () => { onDone(); ttsAudio=null; };
+    ttsAudio.play().catch(()=>{ onDone(); });
+  };
+
+  if(ttsCache[cacheKey]){
+    playUrl(ttsCache[cacheKey]);
+    return;
+  }
+
+  // Fetch from Gemini TTS
+  fetchTTSAudio(s.text, langDB.ttsLang)
+    .then(url => {
+      ttsCache[cacheKey] = url;
+      playUrl(url);
+    })
+    .catch(err => {
+      console.warn('Gemini TTS failed, falling back to Web Speech:', err.message);
+      // Fallback to Web Speech API
+      useWebSpeech(s.text, langDB.ttsLang, onDone);
+    });
+}
+
+function useWebSpeech(text, langCode, onDone){
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = langCode; utt.rate = 0.82; utt.pitch = 1;
+  const voices = window.speechSynthesis.getVoices();
+  const prefix = langCode.split('-')[0];
+  const best = voices.find(v=>v.lang===langCode && v.localService)
+             || voices.find(v=>v.lang===langCode)
+             || voices.find(v=>v.lang.startsWith(prefix) && v.localService)
+             || voices.find(v=>v.lang.startsWith(prefix));
+  if(best) utt.voice = best;
+  utt.onend = onDone; utt.onerror = onDone;
+  window.speechSynthesis.speak(utt);
+}
+window.speechSynthesis.onvoiceschanged = ()=>{};
+
+/* ── Recording (MediaRecorder) ── */
+async function toggleRecord(){
+  if(isRecording){ stopRecording(false); return; }
+  await startRecording();
+}
+
+async function startRecording(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks=[];
+
+    // iOS only supports audio/mp4 — detect and prioritise it
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const candidates = isIOS
+      ? ['audio/mp4', 'audio/aac', '']
+      : ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4',''];
+    const mimeType = candidates.find(m => m==='' || MediaRecorder.isTypeSupported(m)) || '';
+
+    mediaRecorder=new MediaRecorder(stream, mimeType ? {mimeType} : {});
+    mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) audioChunks.push(e.data); };
+    mediaRecorder.onstop=()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      if(!_cancelRecording) processAudio();
+    };
+    mediaRecorder.start(100);
+    isRecording=true; _cancelRecording=false;
+
+    // Show detected format for debugging
+    const fmt = mediaRecorder.mimeType || 'unknown';
+    document.getElementById('rec-ring').classList.add('recording');
+    setRecIcon('stop');
+    document.getElementById('rec-hint').textContent = t('recording');
+    document.getElementById('rec-sub').textContent = fmt.includes('mp4')?'🎙 mp4':fmt.includes('webm')?'🎙 webm':'🎙';
+  }catch(err){
+    document.getElementById('rec-hint').textContent=
+      err.name==='NotAllowedError'?'請允許麥克風權限後重試':'麥克風無法使用，請檢查設定';
+  }
+}
+
+let _cancelRecording=false;
+function stopRecording(cancel=false){
+  _cancelRecording=cancel;
+  if(mediaRecorder&&isRecording){
+    isRecording=false;
+    mediaRecorder.stop();
+    document.getElementById('rec-ring').classList.remove('recording');
+    setRecIcon('mic');
+    if(!cancel){
+      document.getElementById('rec-hint').textContent = t('processing');
+      document.getElementById('rec-sub').textContent='';
+    }
+  }
+}
+
+/* ── Gemini Audio Scoring ── */
+let lastRecordingUrl = null;  // object URL of last recording
+
+async function processAudio(){
+  const set=getLangSet(), s=set.sentences[current];
+
+  const blob=new Blob(audioChunks, {type: mediaRecorder?.mimeType || audioChunks[0]?.type || 'audio/mp4'});
+  const base64=await blobToBase64(blob);
+  // Gemini accepts: audio/mp4, audio/mpeg, audio/webm, audio/ogg, audio/wav
+  // Normalise: strip codec params, fallback to audio/mp4
+  let mimeType = blob.type.split(';')[0].trim();
+  const supported = ['audio/mp4','audio/mpeg','audio/webm','audio/ogg','audio/wav','audio/aac'];
+  if(!supported.includes(mimeType)) mimeType = 'audio/mp4';
+
+  const blobKB = (blob.size/1024).toFixed(1);
+  console.log(`Recording: ${blobKB}KB, format: ${mimeType}, chunks: ${audioChunks.length}`);
+
+  // Save for playback
+  if(lastRecordingUrl) URL.revokeObjectURL(lastRecordingUrl);
+  lastRecordingUrl = URL.createObjectURL(blob);
+
+  // Show loading UI
+  document.getElementById('rec-area').style.display='none';
+  document.getElementById('result-section').style.display='block';
+  setTimeout(()=>document.getElementById('result-section').scrollIntoView({behavior:'smooth', block:'start'}), 100);
+  document.getElementById('ai-loading').style.display='flex';
+  document.getElementById('ai-loading-text').textContent = t('analysing')+` (${blobKB}KB)`;
+  document.getElementById('result-card').style.display='none';
+  document.getElementById('next-btn').disabled=true;
+  document.getElementById('retry-btn').disabled=true;
+
+  let score, wordResults, feedbackText, heardText;
+  try{
+    const result=await scoreWithGemini(s.text, s.words, base64, mimeType, activeLang);
+    score=result.score; wordResults=result.wordResults;
+    feedbackText=result.feedback; heardText=result.heard;
+  }catch(err){
+    console.error(err);
+    score=0; wordResults=s.words.map(w=>({word:w,status:'bad'}));
+    feedbackText='API 錯誤：'+err.message;
+    heardText='';
+  }
+
+  // Track best score
+  const prev=bestScores[current];
+  if(prev===undefined||score>prev) bestScores[current]=score;
+  scores[current]=bestScores[current];
+
+  // Show transcript + playback button — always show playback regardless of heardText
+  const playbackLabel = t('playMyRec');
+  const heardLabel = t('aiHeard');
+  document.getElementById('transcript-row').innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+      ${heardText ? `<span style="font-size:12px;color:var(--text3)">${heardLabel}：<span style="font-style:italic;color:var(--text2)">${heardText}</span></span>` : '<span></span>'}
+      <button id="play-my-rec-btn" onclick="playMyRecording(this)" style="display:flex;align-items:center;gap:5px;font-size:12px;padding:6px 12px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--blue);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        ${playbackLabel}
+      </button>
+    </div>`;
+
+  document.getElementById('ai-loading').style.display='none';
+  document.getElementById('result-card').style.display='block';
+
+  // Score-based Next button lock
+  const passed = score >= PASS_SCORE;
+  const nextBtn = document.getElementById('next-btn');
+  nextBtn.disabled = !passed;
+  nextBtn.style.opacity = passed ? '1' : '0.4';
+  nextBtn.title = passed ? '' : t('scoreLocked', PASS_SCORE);
+  document.getElementById('retry-btn').disabled=false;
+
+  showResult(score, wordResults, feedbackText, prev);
+  const isLast = current === getLangSet().sentences.length-1;
+  document.getElementById('next-label').textContent = isLast ? t('finalBtn') : t('nextBtn');
+}
+
+let myAudio = null;
+function playMyRecording(btn){
+  if(!lastRecordingUrl) return;
+  if(myAudio){ myAudio.pause(); myAudio=null; }
+  const b = btn || document.getElementById('play-my-rec-btn');
+  const origHTML = b ? b.innerHTML : '';
+  myAudio = new Audio(lastRecordingUrl);
+  if(b) b.style.color = 'var(--amber-text)';
+  myAudio.onended = () => { if(b){ b.innerHTML=origHTML; b.style.color='var(--blue)'; } myAudio=null; };
+  myAudio.play().catch(e=>{ console.warn('playback error',e); if(b) b.style.color='var(--blue)'; });
+}
+
+async function scoreWithGemini(targetSentence, words, audioBase64, mimeType, lang){
+  const prompts = {
+    zh: `你是普通話發音老師。學生應該朗讀這句話：「${targetSentence}」
+
+請仔細聆聽音頻，給出公正的評分。只回傳 JSON，不要其他文字：
+{
+  "heard": "你聽到學生說了什麼（照實轉錄）",
+  "score": 整數0-100。評分標準：每個字發音清晰、聲調正確、語速自然=90-100；發音大致正確但有少數聲調錯誤=75-89；約一半的字發音正確=50-74；大部分發音不正確=20-49；完全不同或聽不清楚=0-19。如果學生說的句子和目標完全一致且清晰，應給90分以上。,
+  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
+  "feedback": "簡短一句建議（15字以內），若發音很好就給予鼓勵"
+}
+wordResults 裡每個 status 填 good/ok/bad。根據實際聽到的發音判斷，不要過度嚴格。`,
+
+    en: `You are an English pronunciation coach. The student should say: "${targetSentence}"
+
+Listen carefully and give a fair score. Return only JSON:
+{
+  "heard": "verbatim transcription of what you heard",
+  "score": integer 0-100. Scoring: clear pronunciation, natural rhythm, correct stress=90-100; mostly correct with minor issues=75-89; about half correct=50-74; mostly incorrect=20-49; completely different or inaudible=0-19. If the student said the sentence clearly and correctly, score should be 90+.,
+  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
+  "feedback": "One short coaching tip (max 8 words). If pronunciation is great, say so!"
+}
+Fill each status with good/ok/bad. Do not be overly strict.`,
+
+    ja: `あなたは日本語の発音コーチです。生徒はこの文を読む必要があります：「${targetSentence}」
+
+音声をよく聴いて、公正な評価をしてください。JSONのみを返してください：
+{
+  "heard": "生徒が言ったことをそのまま書き起こす",
+  "score": 整数0-100。採点基準：発音が明瞭でアクセントが自然=90-100；概ね正確だが一部誤り=75-89；半分程度正確=50-74；大部分が不正確=20-49；全く違う=0-19。正確に発音できていれば90点以上をつけてください。,
+  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
+  "feedback": "短いコメント（10文字以内）。上手なら褒めてください"
+}
+statusはgood/ok/badで記入。厳しすぎないように評価してください。`,
+
+    de: `Du bist ein Deutschlehrer für Aussprache. Der Schüler soll diesen Satz lesen: "${targetSentence}"
+
+Höre dir die Aufnahme genau an und bewerte die Aussprache fair. Antworte nur mit JSON:
+{
+  "heard": "Was du gehört hast (genaue Transkription)",
+  "score": Ganzzahl 0-100. Bewertung: klare Aussprache, natürlicher Rhythmus=90-100; größtenteils korrekt mit kleinen Fehlern=75-89; etwa die Hälfte korrekt=50-74; größtenteils falsch=20-49; völlig anders=0-19. Bei korrekter Aussprache 90+ geben.,
+  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
+  "feedback": "Kurzer Tipp auf Deutsch (max 8 Wörter). Bei guter Leistung loben!"
+}
+Status: good/ok/bad. Nicht zu streng bewerten.`,
+
+    fr: `Tu es un professeur de prononciation française. L'élève doit lire cette phrase : "${targetSentence}"
+
+Écoute attentivement l'audio et évalue la prononciation de façon équitable. Réponds uniquement en JSON :
+{
+  "heard": "Ce que tu as entendu (transcription exacte)",
+  "score": entier 0-100. Critères : prononciation claire et rythme naturel=90-100 ; globalement correct avec quelques erreurs=75-89 ; environ la moitié correct=50-74 ; majoritairement incorrect=20-49 ; complètement différent=0-19. Donner 90+ si la prononciation est correcte.,
+  "wordResults": ${JSON.stringify(words.map(w=>({word:w,status:'?'})))},
+  "feedback": "Conseil court en français (max 8 mots). Féliciter si c'est bien !"
+}
+Statut : good/ok/bad. Ne pas être trop sévère.`
+  };
+
+  const res=await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+    {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        contents:[{parts:[
+          {inline_data:{mime_type:mimeType, data:audioBase64}},
+          {text: prompts[lang] || prompts.en}
+        ]}],
+        generationConfig:{
+          temperature:0.1,
+          maxOutputTokens:1024,
+          thinkingConfig:{thinkingBudget:0}
+        }
+      })
+    }
+  );
+  if(!res.ok){
+    const err=await res.json();
+    throw new Error(err.error?.message||`HTTP ${res.status}`);
+  }
+  const data=await res.json();
+  const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  const jsonMatch=raw.match(/\{[\s\S]*\}/);
+  if(!jsonMatch) throw new Error('No JSON in response: '+raw.slice(0,200));
+  return JSON.parse(jsonMatch[0]);
+}
+
+function blobToBase64(blob){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=rej;
+    r.readAsDataURL(blob);
+  });
+}
+
+function fallbackScore(original, transcript){
+  if(!transcript)return 15;
+  const clean=s=>s.toLowerCase().replace(/[.,!?'"\s]/g,'');
+  const orig=[...clean(original)], trans=[...clean(transcript)];
+  let m=0; orig.forEach(c=>{if(trans.includes(c))m++;});
+  return Math.min(100,Math.max(15,Math.round(m/Math.max(orig.length,1)*80)));
+}
+
+function showResult(score, wordResults, feedbackText, prevScore){
+  let bg,color,grade;
+  if(score>=85){bg='var(--green-bg)';color='var(--green-text)';grade=t('scoreGood')+' '+score;}
+  else if(score>=65){bg='var(--amber-bg)';color='var(--amber-text)';grade=t('scoreFine')+' '+score;}
+  else if(score>=40){bg='var(--amber-bg)';color='var(--amber-text)';grade=t('scoreOk')+' '+score;}
+  else{bg='var(--red-bg)';color='var(--red-text)';grade=t('scoreLow')+' '+score;}
+  const badge=document.getElementById('score-badge');
+  badge.style.background=bg; badge.style.color=color; badge.textContent=score;
+  document.getElementById('score-grade').textContent=grade;
+  let subText=`${score} / 100`;
+  if(prevScore!==undefined){
+    const diff=score-prevScore;
+    if(diff>0) subText+=` 🎉 +${diff}`;
+    else if(diff<0) subText+=` ↓ ${Math.abs(diff)}`;
+    else subText+=' ＝';
+  }
+  // Show lock hint if below pass score
+  if(score < PASS_SCORE) subText += '　⚠ '+t('scoreLocked', PASS_SCORE);
+  document.getElementById('score-sub').textContent=subText;
+  const row=document.getElementById('words-row');
+  row.innerHTML='';
+  (wordResults||[]).forEach(({word,status})=>{
+    const chip=document.createElement('span');
+    chip.className=`word-chip chip-${status||'ok'}`;
+    chip.textContent=word;
+    row.appendChild(chip);
+  });
+  document.getElementById('feedback-text').textContent=feedbackText||'';
+}
+
+function retryRecord(){
+  document.getElementById('result-section').style.display='none';
+  document.getElementById('rec-area').style.display='flex';
+  document.getElementById('rec-ring').style.opacity='1';
+  document.getElementById('rec-ring').style.pointerEvents='auto';
+  setRecIcon('mic');
+  // Immediately start recording — no extra tap needed
+  startRecording();
+}
+
+function nextSentence(){
+  const total=getLangSet().sentences.length;
+  current++;
+  if(current>=total){showSummary();return;}
+  loadSentence();
+}
+
+function showSummary(){
+  const vals=Object.values(scores);
+  const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
+  const perfect=vals.filter(s=>s>=85).length;
+  const mins=Math.max(1,Math.round((Date.now()-startTime)/60000));
+  document.getElementById('sum-score').textContent=avg||'—';
+  document.getElementById('sum-subtitle').textContent=t('summarySub');
+  document.getElementById('sum-perfect').textContent=perfect+'/'+getLangSet().sentences.length;
+  document.getElementById('sum-time').textContent=mins+' '+t('minUnit');
+  document.getElementById('sum-streak').textContent=(streak+1);
+  document.getElementById('prog-bar').style.width='100%';
+  showScreen('screen-summary');
+}
+
+loadKey();
+applyI18n();
+window.speechSynthesis&&window.speechSynthesis.getVoices();
+</script>
+<!-- API Key Modal -->
+<div class="modal-overlay hidden" id="key-modal" onclick="closeKeyModal()">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">輸入 Gemini API Key</div>
+    <div style="padding:0 20px 24px;display:flex;flex-direction:column;gap:12px">
+      <p style="font-size:13px;color:var(--text2);line-height:1.6">前往 <strong>aistudio.google.com</strong> 免費取得 API Key，輸入後會存在本機。</p>
+      <input id="api-key-input" type="password" placeholder="AIza..." autocomplete="off"
+        style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;outline:none">
+      <button onclick="saveKey()" style="width:100%;padding:14px;font-size:15px;font-weight:600;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存並開始</button>
+      <p style="font-size:11px;color:var(--text3);text-align:center">Key 只存在你的裝置，不會傳送到其他地方</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
