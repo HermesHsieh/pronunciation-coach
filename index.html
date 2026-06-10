@@ -535,6 +535,7 @@ let current=0, scores={}, bestScores={};
 let mediaRecorder=null, audioChunks=[], isRecording=false;
 let startTime=Date.now(), streak=3;
 let geminiKey='';
+let azureKey='', azureRegion='eastasia';
 
 // Central accessor — all code uses this instead of DB[activeLang].sentences
 function getLangSet(){ return DB[activeLang]?.sets?.[activeSet] || DB[activeLang]?.sets?.free; }
@@ -628,27 +629,32 @@ function t(key, ...args){
 }
 
 /* ── API Key setup ── */
-function loadKey(){ geminiKey=localStorage.getItem('gemini_key')||''; }
+function loadKey(){
+  geminiKey    = localStorage.getItem('gemini_key')||'';
+  azureKey     = localStorage.getItem('azure_key')||'';
+  azureRegion  = localStorage.getItem('azure_region')||'eastasia';
+}
 function saveKey(){
-  const k=document.getElementById('api-key-input').value.trim();
-  if(!k){ alert('請輸入 API Key'); return; }
-  geminiKey=k; localStorage.setItem('gemini_key',k);
+  const ak = document.getElementById('azure-key-input').value.trim();
+  const ar = document.getElementById('azure-region-input').value;
+  const gk = document.getElementById('api-key-input').value.trim();
+  if(!ak && !gk){ alert('請至少輸入一個 API Key'); return; }
+  if(ak){ azureKey=ak; localStorage.setItem('azure_key',ak); }
+  if(ar){ azureRegion=ar; localStorage.setItem('azure_region',ar); }
+  if(gk){ geminiKey=gk; localStorage.setItem('gemini_key',gk); }
   document.getElementById('key-modal').classList.add('hidden');
 }
 function openKeyModal(){
   const modal = document.getElementById('key-modal');
   if(!modal) return;
-  // Update modal text with current language
-  const titleEl = modal.querySelector('.modal-title');
-  if(titleEl) titleEl.textContent = t('keyTitle');
-  const descEl = modal.querySelector('p');
-  if(descEl) descEl.innerHTML = t('keyDesc');
-  const saveBtn = modal.querySelector('button');
-  if(saveBtn) saveBtn.textContent = t('keySave');
+  const akEl = document.getElementById('azure-key-input');
+  const arEl = document.getElementById('azure-region-input');
+  if(akEl) akEl.value = azureKey;
+  if(arEl) arEl.value = azureRegion;
+  document.getElementById('api-key-input').value = geminiKey;
   modal.classList.remove('hidden');
-  document.getElementById('api-key-input').value=geminiKey;
 }
-function closeKeyModal(){ if(geminiKey) document.getElementById('key-modal').classList.add('hidden'); }
+function closeKeyModal(){ if(azureKey||geminiKey) document.getElementById('key-modal').classList.add('hidden'); }
 
 /* ── Screen helpers ── */
 function showScreen(id){
@@ -812,7 +818,7 @@ function getStreak(){
 
 function startPractice(){
   if(!activeLang)return;
-  if(!geminiKey){ openKeyModal(); return; }
+  if(!azureKey && !geminiKey){ openKeyModal(); return; }
 
   // Load saved progress for this lang+set
   const p = loadProgress();
@@ -1463,10 +1469,6 @@ async function submitToAI(){
 
   const set=getLangSet(), s=set.sentences[current];
   const blob = lastBlob;
-  const base64 = await blobToBase64(blob);
-  let mimeType = blob.type.split(';')[0].trim();
-  const supported = ['audio/mp4','audio/mpeg','audio/webm','audio/ogg','audio/wav','audio/aac'];
-  if(!supported.includes(mimeType)) mimeType = 'audio/mp4';
   const blobKB = (blob.size/1024).toFixed(1);
 
   document.getElementById('preview-section').style.display='none';
@@ -1480,11 +1482,9 @@ async function submitToAI(){
 
   let score, wordResults, feedbackText, heardText;
   try{
-    const result=await scoreWithGemini(s.text, s.words, base64, mimeType, activeLang);
+    const result = await scoreAudio(s.text, s.words, blob, activeLang);
     score=result.score; wordResults=result.wordResults;
     feedbackText=result.feedback; heardText=result.heard;
-    // Append reasoning to feedback if available
-    if(result.reasoning) feedbackText = result.feedback + '\n💭 ' + result.reasoning;
   }catch(err){
     console.error(err);
     score=0; wordResults=s.words.map(w=>({word:w,status:'bad'}));
@@ -1601,6 +1601,127 @@ async function scoreWithGemini(targetSentence, words, audioBase64, mimeType, lan
   };
 }
 
+/* ── Audio conversion: Blob → WAV PCM 16kHz (required by Azure PA) ── */
+async function blobToWavPCM(blob){
+  const arrayBuf = await blob.arrayBuffer();
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)({sampleRate:16000});
+  const decoded  = await audioCtx.decodeAudioData(arrayBuf);
+  audioCtx.close();
+
+  // Mix down to mono at 16kHz
+  const numSamples = decoded.length;
+  const pcm = new Int16Array(numSamples);
+  const chData = decoded.getChannelData(0); // use channel 0
+  for(let i=0; i<numSamples; i++){
+    pcm[i] = Math.max(-32768, Math.min(32767, Math.round(chData[i] * 32767)));
+  }
+
+  // Build WAV file header
+  const wavBuf = new ArrayBuffer(44 + pcm.byteLength);
+  const view   = new DataView(wavBuf);
+  const str    = (off, s) => { for(let i=0;i<s.length;i++) view.setUint8(off+i, s.charCodeAt(i)); };
+  const u16    = (off, v) => view.setUint16(off, v, true);
+  const u32    = (off, v) => view.setUint32(off, v, true);
+  str(0,'RIFF'); u32(4, 36+pcm.byteLength); str(8,'WAVE');
+  str(12,'fmt '); u32(16,16); u16(20,1); u16(22,1);
+  u32(24,16000); u32(28,32000); u16(32,2); u16(34,16);
+  str(36,'data'); u32(40, pcm.byteLength);
+  new Int16Array(wavBuf, 44).set(pcm);
+  return new Blob([wavBuf], {type:'audio/wav'});
+}
+
+/* ── Azure Pronunciation Assessment ── */
+const AZURE_LANG_MAP = {zh:'zh-CN', en:'en-US', ja:'ja-JP', de:'de-DE', fr:'fr-FR'};
+
+async function scoreWithAzure(targetSentence, words, wavBlob, lang){
+  const azureLang = AZURE_LANG_MAP[lang] || 'en-US';
+  const endpoint  = `https://${azureRegion}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1?language=${azureLang}&format=detailed`;
+
+  // Build pronunciation assessment config header (base64 encoded JSON)
+  const paConfig = {
+    ReferenceText:   targetSentence,
+    GradingSystem:   'HundredMark',
+    Granularity:     'Word',
+    EnableMiscue:    true
+  };
+  const paHeader = btoa(JSON.stringify(paConfig));
+
+  const res = await fetch(endpoint, {
+    method:  'POST',
+    headers: {
+      'Ocp-Apim-Subscription-Key': azureKey,
+      'Content-Type':              'audio/wav; codecs=audio/pcm; samplerate=16000',
+      'Pronunciation-Assessment':  paHeader,
+      'Accept':                    'application/json'
+    },
+    body: wavBlob
+  });
+
+  if(!res.ok){
+    const errText = await res.text();
+    throw new Error(`Azure PA HTTP ${res.status}: ${errText.slice(0,200)}`);
+  }
+
+  const data = await res.json();
+
+  // Extract scores from Azure response
+  const nBest  = data.NBest?.[0];
+  const paRes  = nBest?.PronunciationAssessment;
+  if(!paRes) throw new Error('No PronunciationAssessment in response');
+
+  const score   = Math.round(paRes.PronScore || 0);
+  const heard   = nBest?.Display || nBest?.Lexical || '';
+
+  // Per-word results
+  const wordResults = words.map((word, i)=>{
+    const wData = nBest?.Words?.[i];
+    const wScore = wData?.PronunciationAssessment?.AccuracyScore || 0;
+    const errType = wData?.PronunciationAssessment?.ErrorType || 'None';
+    let status = 'good';
+    if(errType !== 'None' || wScore < 60) status = 'bad';
+    else if(wScore < 80) status = 'ok';
+    return {word, status};
+  });
+
+  // Build feedback from scores
+  const acc   = Math.round(paRes.AccuracyScore||0);
+  const flu   = Math.round(paRes.FluencyScore||0);
+  const comp  = Math.round(paRes.CompletenessScore||0);
+  let feedback = '';
+  if(score >= 85)      feedback = lang==='zh'?'發音很準確！繼續保持。':lang==='ja'?'発音が正確です！':  'Excellent pronunciation!';
+  else if(acc < flu)   feedback = lang==='zh'?`準確度 ${acc}，注意字詞發音`:lang==='ja'?`正確度${acc}点。発音に注意`:    `Accuracy ${acc} — focus on word sounds`;
+  else if(flu < acc)   feedback = lang==='zh'?`流暢度 ${flu}，可以多練習語速`:lang==='ja'?`流暢度${flu}点。流れを練習`:  `Fluency ${flu} — practice rhythm`;
+  else if(comp < 90)   feedback = lang==='zh'?'注意說完整句子':lang==='ja'?'文全体を発音して':              'Make sure to say the complete sentence';
+  else                 feedback = lang==='zh'?`準確 ${acc} 流暢 ${flu}`:lang==='ja'?`正確${acc} 流暢${flu}`:           `Accuracy ${acc}, Fluency ${flu}`;
+
+  return {heard, score, wordResults, feedback};
+}
+
+/* ── Main scoring entry point (Azure PA with Gemini fallback) ── */
+async function scoreAudio(targetSentence, words, blob, lang){
+  if(azureKey){
+    try {
+      // Convert to WAV PCM 16kHz for Azure
+      document.getElementById('ai-loading-text').textContent =
+        (lang==='zh'?'轉換音頻格式中…':lang==='ja'?'音声を変換中…':'Converting audio…');
+      const wavBlob = await blobToWavPCM(blob);
+      document.getElementById('ai-loading-text').textContent =
+        (lang==='zh'?'Azure 分析發音中…':lang==='ja'?'Azure が発音を分析中…':'Azure analysing pronunciation…');
+      return await scoreWithAzure(targetSentence, words, wavBlob, lang);
+    } catch(e) {
+      console.warn('Azure PA failed, falling back to Gemini:', e.message);
+      // Fall through to Gemini
+    }
+  }
+  // Gemini fallback
+  if(!geminiKey) throw new Error('No API key configured');
+  const base64 = await blobToBase64(blob);
+  const mimeType = (blob.type.split(';')[0]||'audio/mp4');
+  document.getElementById('ai-loading-text').textContent =
+    (lang==='zh'?'Gemini 分析中…':lang==='ja'?'Gemini が分析中…':'Gemini analysing…');
+  return await scoreWithGemini(targetSentence, words, base64, mimeType, lang);
+}
+
 function blobToBase64(blob){
   return new Promise((res,rej)=>{
     const r=new FileReader();
@@ -1689,13 +1810,23 @@ window.speechSynthesis&&window.speechSynthesis.getVoices();
 <div class="modal-overlay hidden" id="key-modal" onclick="closeKeyModal()">
   <div class="modal-sheet" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
-    <div class="modal-title">輸入 Gemini API Key</div>
+    <div class="modal-title">API Key 設定</div>
     <div style="padding:0 20px 24px;display:flex;flex-direction:column;gap:12px">
-      <p style="font-size:13px;color:var(--text2);line-height:1.6">前往 <strong>aistudio.google.com</strong> 免費取得 API Key，輸入後會存在本機。</p>
+      <div style="font-size:13px;font-weight:600;color:var(--text2)">🎤 Azure Speech（發音評分）</div>
+      <input id="azure-key-input" type="password" placeholder="Azure Speech Key..." autocomplete="off"
+        style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;outline:none">
+      <select id="azure-region-input"
+        style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:14px;font-family:inherit;outline:none">
+        <option value="eastasia">East Asia（香港）</option>
+        <option value="japaneast">Japan East（東京）</option>
+        <option value="eastus">East US</option>
+        <option value="westeurope">West Europe</option>
+      </select>
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px">✨ Gemini（圖片生成 / TTS）</div>
       <input id="api-key-input" type="password" placeholder="AIza..." autocomplete="off"
         style="width:100%;padding:12px 14px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;outline:none">
       <button onclick="saveKey()" style="width:100%;padding:14px;font-size:15px;font-weight:600;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存並開始</button>
-      <p style="font-size:11px;color:var(--text3);text-align:center">Key 只存在你的裝置，不會傳送到其他地方</p>
+      <p style="font-size:11px;color:var(--text3);text-align:center">所有 Key 只存在你的裝置，不會傳送到其他地方</p>
     </div>
   </div>
 </div>
