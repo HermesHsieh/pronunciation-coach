@@ -75,12 +75,12 @@
   .settings-btn{font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:inherit;transition:all .15s}
   .settings-btn:active{transform:scale(.95)}
   .settings-btn.active-settings{background:var(--blue);color:#fff;border-color:var(--blue)}
-  .pinyin{font-size:14px;color:var(--text2);margin-bottom:5px;line-height:1.6;min-height:20px}
+  .pinyin{font-size:var(--sub-font-size,14px);color:var(--text2);margin-bottom:5px;line-height:1.6;min-height:20px}
   ruby{display:inline-flex;flex-direction:column-reverse;align-items:center;line-height:1}
   rt{font-size:10px;color:var(--text3);line-height:1.2;text-align:center}
-  .romaji{font-size:12px;color:var(--text3);margin-top:4px;line-height:1.5}
-  .hint{font-size:12px;color:var(--text3);font-style:italic;margin-bottom:14px}
-  .play-btn{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text2);background:var(--bg2);border:none;border-radius:var(--radius-sm);padding:10px 16px;cursor:pointer;width:100%;justify-content:center;font-family:inherit;transition:background .15s}
+  .romaji{font-size:calc(var(--sub-font-size,14px) - 2px);color:var(--text3);margin-top:4px;line-height:1.5}
+  .hint{font-size:calc(var(--sub-font-size,14px) - 2px);color:var(--text3);font-style:italic;margin-bottom:14px}
+  .play-btn{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text2);background:var(--bg2);border:none;border-radius:var(--radius-sm);padding:10px 16px;cursor:pointer;justify-content:center;font-family:inherit;transition:background .15s}
   .play-btn:active{background:var(--bg3)}
   .play-btn svg{width:16px;height:16px;flex-shrink:0}
   .speed-btn{font-size:12px;font-weight:500;padding:4px 9px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:inherit;transition:all .15s}
@@ -254,14 +254,19 @@
     <div class="sentence-text" id="sent-text"></div>
     <div class="pinyin" id="sent-pinyin"></div>
     <div id="translation-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div id="sent-translation" style="font-size:13px;color:var(--text2);line-height:1.5;flex:1"></div>
+      <div id="sent-translation" style="font-size:var(--sub-font-size,13px);color:var(--text2);line-height:1.5;flex:1"></div>
       <button id="trans-toggle" onclick="toggleTranslation()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);flex-shrink:0;font-family:inherit">隱藏</button>
     </div>
     <div class="hint" id="sent-hint"></div>
-    <button class="play-btn" id="play-btn" onclick="playSentence()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      聽範例發音
-    </button>
+    <div style="display:flex;align-items:stretch;gap:6px">
+      <button class="play-btn" id="play-btn" onclick="playSentence()" style="flex:1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        聽範例發音
+      </button>
+      <button id="clear-tts-btn" onclick="clearCurrentTTS()" title="清除此句語音暫存，重新載入" style="width:40px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+      </button>
+    </div>
   </div>
   <div class="rec-area" id="rec-area">
     <div class="rec-ring" id="rec-ring" onclick="toggleRecord()">
@@ -321,12 +326,19 @@
       <div class="words-row" id="words-row"></div>
       <div class="feedback" id="feedback-text"></div>
     </div>
-    <div class="btn-row" style="position:sticky;bottom:0;background:var(--bg);padding:12px 0 4px;margin-top:12px">
-      <button class="retry-btn" id="retry-btn" onclick="retryRecord()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
-        錄製
-      </button>
-      <button class="next-btn" id="next-btn" onclick="nextSentence()">
+    <div style="position:sticky;bottom:0;background:var(--bg);padding:12px 0 4px;margin-top:12px;display:flex;align-items:center;gap:10px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+        <button id="retry-btn" onclick="retryRecord()" style="width:52px;height:52px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:var(--text2)">
+            <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+            <line x1="8" y1="22" x2="16" y2="22"/>
+          </svg>
+        </button>
+        <span style="font-size:11px;color:var(--text3)">重錄</span>
+      </div>
+      <button class="next-btn" id="next-btn" onclick="nextSentence()" style="flex:1">
         <span id="next-label">下一句</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
       </button>
@@ -538,7 +550,7 @@ let mediaRecorder=null, audioChunks=[], isRecording=false;
 let startTime=Date.now(), streak=3;
 let geminiKey='';
 let azureKey='', azureRegion='pronunciation-coach-speech';
-let sentFontSize=24;
+let sentFontSize=24, subFontSize=14;
 
 // Central accessor — all code uses this instead of DB[activeLang].sentences
 function getLangSet(){ return DB[activeLang]?.sets?.[activeSet] || DB[activeLang]?.sets?.free; }
@@ -637,8 +649,10 @@ function loadKey(){
   azureKey     = localStorage.getItem('azure_key')||'';
   azureRegion  = localStorage.getItem('azure_region')||'pronunciation-coach-speech';
   sentFontSize = parseInt(localStorage.getItem('sent_font_size')||'24');
+  subFontSize  = parseInt(localStorage.getItem('sub_font_size')||'14');
   ttsSpeed     = parseFloat(localStorage.getItem('tts_speed')||'0.8');
   document.documentElement.style.setProperty('--sent-font-size', sentFontSize+'px');
+  document.documentElement.style.setProperty('--sub-font-size',  subFontSize+'px');
 }
 function saveKey(){
   const ak = document.getElementById('azure-key-input').value.trim();
@@ -664,6 +678,9 @@ function openKeyModal(){
   // 同步字體大小按鈕
   document.querySelectorAll('.font-size-btn').forEach(b =>
     b.classList.toggle('active-settings', parseInt(b.dataset.size)===sentFontSize));
+  // 同步說明文字大小按鈕
+  document.querySelectorAll('.sub-font-size-btn').forEach(b =>
+    b.classList.toggle('active-settings', parseInt(b.dataset.size)===subFontSize));
   modal.classList.remove('hidden');
 }
 function closeKeyModal(){ if(azureKey||geminiKey) document.getElementById('key-modal').classList.add('hidden'); }
@@ -1203,6 +1220,23 @@ async function ttsCacheLoad(key){
   } catch(e){ return null; }
 }
 
+async function clearCurrentTTS(){
+  const set = getLangSet(), s = set.sentences[current];
+  const textSlug = s.text.replace(/\s/g,'').slice(0,10);
+  const cacheKey = `${activeLang}-${activeSet}-${current}-${textSlug}`;
+  // Clear memory cache
+  if(ttsCache[cacheKey]){ URL.revokeObjectURL(ttsCache[cacheKey]); delete ttsCache[cacheKey]; }
+  // Clear IndexedDB
+  try {
+    const db = await openTTSDB();
+    db.transaction(TTS_DB_STORE,'readwrite').objectStore(TTS_DB_STORE).delete(cacheKey);
+  } catch(e){}
+  // Visual feedback on button
+  const btn = document.getElementById('clear-tts-btn');
+  if(btn){ btn.style.color='var(--blue)'; setTimeout(()=>btn.style.color='',800); }
+  console.log('TTS cache cleared for:', cacheKey);
+}
+
 function setSpeed(btn){
   ttsSpeed = parseFloat(btn.dataset.rate);
   localStorage.setItem('tts_speed', ttsSpeed);
@@ -1215,6 +1249,13 @@ function setFontSize(size){
   localStorage.setItem('sent_font_size', size);
   document.documentElement.style.setProperty('--sent-font-size', size+'px');
   document.querySelectorAll('.font-size-btn').forEach(b =>
+    b.classList.toggle('active-settings', parseInt(b.dataset.size)===size));
+}
+function setSubFontSize(size){
+  subFontSize = size;
+  localStorage.setItem('sub_font_size', size);
+  document.documentElement.style.setProperty('--sub-font-size', size+'px');
+  document.querySelectorAll('.sub-font-size-btn').forEach(b =>
     b.classList.toggle('active-settings', parseInt(b.dataset.size)===size));
 }
 
@@ -1289,7 +1330,9 @@ function playSentence(){
   window.speechSynthesis.cancel();
   if(ttsAudio){ ttsAudio.pause(); ttsAudio=null; }
 
-  const cacheKey = `${activeLang}-${current}`;
+  // Include set + text slug so stale cache is auto-skipped when sentences change
+  const textSlug = s.text.replace(/\s/g,'').slice(0,10);
+  const cacheKey = `${activeLang}-${activeSet}-${current}-${textSlug}`;
 
   // Called when audio actually starts playing
   const onPlayStart = () => {
@@ -1921,6 +1964,14 @@ document.addEventListener('click', e => {
         <button class="settings-btn font-size-btn active-settings" data-size="24" onclick="setFontSize(24)">中</button>
         <button class="settings-btn font-size-btn" data-size="30" onclick="setFontSize(30)">大</button>
         <button class="settings-btn font-size-btn" data-size="36" onclick="setFontSize(36)">特大</button>
+      </div>
+
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px">📝 說明文字大小</div>
+      <div style="display:flex;gap:6px">
+        <button class="settings-btn sub-font-size-btn" data-size="10" onclick="setSubFontSize(10)">極小</button>
+        <button class="settings-btn sub-font-size-btn" data-size="12" onclick="setSubFontSize(12)">小</button>
+        <button class="settings-btn sub-font-size-btn active-settings" data-size="14" onclick="setSubFontSize(14)">中</button>
+        <button class="settings-btn sub-font-size-btn" data-size="17" onclick="setSubFontSize(17)">大</button>
       </div>
 
     </div>
