@@ -253,15 +253,21 @@
     </div>
     <div class="sentence-text" id="sent-text"></div>
     <div class="pinyin" id="sent-pinyin"></div>
-    <div id="translation-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div id="translation-row" style="display:flex;align-items:center;margin-bottom:6px">
       <div id="sent-translation" style="font-size:var(--sub-font-size,13px);color:var(--text2);line-height:1.5;flex:1"></div>
-      <button id="trans-toggle" onclick="toggleTranslation()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);flex-shrink:0;font-family:inherit">隱藏</button>
     </div>
     <div class="hint" id="sent-hint"></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button id="aux-toggle" onclick="toggleAuxInfo()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);font-family:inherit">隱藏說明</button>
+    </div>
     <div style="display:flex;align-items:stretch;gap:6px">
       <button class="play-btn" id="play-btn" onclick="playSentence()" style="flex:1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         聽範例發音
+      </button>
+      <button id="loop-btn" onclick="toggleLoop()" title="循環播放" style="width:40px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text3);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;flex-shrink:0;transition:all .15s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        <span id="loop-count-display" style="font-size:9px;line-height:1;font-weight:600">5</span>
       </button>
       <button id="clear-tts-btn" onclick="clearCurrentTTS()" title="清除此句語音暫存，重新載入" style="width:40px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
@@ -544,7 +550,8 @@ const DB = {
 };
 
 const PASS_SCORE = 70;
-let activeLang=null, activeSet='free', nativeLang='zh', showTranslation=true;
+let activeLang=null, activeSet='free', nativeLang='zh', showAuxInfo=true;
+let loopCount=5, loopActive=false, loopRemaining=0, currentLoopUrl=null;
 let current=0, scores={}, bestScores={};
 let mediaRecorder=null, audioChunks=[], isRecording=false;
 let startTime=Date.now(), streak=3;
@@ -651,6 +658,7 @@ function loadKey(){
   sentFontSize = parseInt(localStorage.getItem('sent_font_size')||'24');
   subFontSize  = parseInt(localStorage.getItem('sub_font_size')||'14');
   ttsSpeed     = parseFloat(localStorage.getItem('tts_speed')||'0.8');
+  loopCount    = parseInt(localStorage.getItem('loop_count')||'5');
   document.documentElement.style.setProperty('--sent-font-size', sentFontSize+'px');
   document.documentElement.style.setProperty('--sub-font-size',  subFontSize+'px');
 }
@@ -681,6 +689,9 @@ function openKeyModal(){
   // 同步說明文字大小按鈕
   document.querySelectorAll('.sub-font-size-btn').forEach(b =>
     b.classList.toggle('active-settings', parseInt(b.dataset.size)===subFontSize));
+  // 同步循環播放次數按鈕
+  document.querySelectorAll('.loop-count-btn').forEach(b =>
+    b.classList.toggle('active-settings', parseInt(b.dataset.count)===loopCount));
   modal.classList.remove('hidden');
 }
 function closeKeyModal(){ if(azureKey||geminiKey) document.getElementById('key-modal').classList.add('hidden'); }
@@ -778,12 +789,26 @@ function selectNative(el){
   nativeLang = el.dataset.native;
   applyI18n();
 }
-function toggleTranslation(){
-  showTranslation=!showTranslation;
-  const transEl=document.getElementById('sent-translation');
-  const btn=document.getElementById('trans-toggle');
-  transEl.style.visibility = showTranslation ? 'visible' : 'hidden';
-  btn.textContent = showTranslation ? t('hideBtn') : t('showBtn');
+function toggleAuxInfo(){
+  showAuxInfo = !showAuxInfo;
+  applyAuxInfo();
+}
+function applyAuxInfo(){
+  const pinyinEl  = document.getElementById('sent-pinyin');
+  const transRow  = document.getElementById('translation-row');
+  const hintEl    = document.getElementById('sent-hint');
+  const btn       = document.getElementById('aux-toggle');
+  if(showAuxInfo){
+    if(pinyinEl.dataset.hasContent)  pinyinEl.style.display  = 'block';
+    if(transRow.dataset.hasContent)  transRow.style.display  = 'flex';
+    if(hintEl.dataset.hasContent)    hintEl.style.display    = '';
+    if(btn) btn.textContent = '隱藏說明';
+  } else {
+    pinyinEl.style.display = 'none';
+    transRow.style.display = 'none';
+    hintEl.style.display   = 'none';
+    if(btn) btn.textContent = '顯示說明';
+  }
 }
 /* ── Progress persistence ── */
 const PROGRESS_KEY = 'speakdaily_progress';
@@ -1118,15 +1143,28 @@ function loadSentence(){
   const set=getLangSet(), s=set.sentences[current], total=set.sentences.length;
   document.getElementById('sent-text').textContent=s.text;
   // Support HTML ruby tags for furigana (Japanese), plain text for others
+  // Stop loop when navigating sentences
+  if(loopActive){ loopActive=false; loopRemaining=0; currentLoopUrl=null; updateLoopBtn(); }
+
   const pinyinEl = document.getElementById('sent-pinyin');
   if(s.sub){
     pinyinEl.innerHTML = s.sub;
-    pinyinEl.style.display = 'block';
+    pinyinEl.dataset.hasContent = '1';
+    pinyinEl.style.display = showAuxInfo ? 'block' : 'none';
   } else {
     pinyinEl.innerHTML = '';
+    pinyinEl.dataset.hasContent = '';
     pinyinEl.style.display = 'none';
   }
-  document.getElementById('sent-hint').textContent=s.hint;
+  const hintEl = document.getElementById('sent-hint');
+  hintEl.textContent = s.hint;
+  if(s.hint){
+    hintEl.dataset.hasContent = '1';
+    hintEl.style.display = showAuxInfo ? '' : 'none';
+  } else {
+    hintEl.dataset.hasContent = '';
+    hintEl.style.display = 'none';
+  }
 
   // Translation
   const transList = set.translations?.[nativeLang];
@@ -1135,12 +1173,14 @@ function loadSentence(){
   const transRow = document.getElementById('translation-row');
   if(transText){
     transEl.textContent = transText;
-    transEl.style.visibility = showTranslation ? 'visible' : 'hidden';
-    document.getElementById('trans-toggle').textContent = showTranslation ? t('hideBtn') : t('showBtn');
-    transRow.style.display = 'flex';
+    transRow.dataset.hasContent = '1';
+    transRow.style.display = showAuxInfo ? 'flex' : 'none';
   } else {
+    transRow.dataset.hasContent = '';
     transRow.style.display = 'none';
   }
+  const auxBtn = document.getElementById('aux-toggle');
+  if(auxBtn) auxBtn.textContent = showAuxInfo ? '隱藏說明' : '顯示說明';
 
   document.getElementById('prog-label').textContent = t('sentenceOf', current+1, total);
   document.getElementById('prog-bar').style.width=(current/total*100)+'%';
@@ -1251,6 +1291,51 @@ function setFontSize(size){
   document.querySelectorAll('.font-size-btn').forEach(b =>
     b.classList.toggle('active-settings', parseInt(b.dataset.size)===size));
 }
+function setLoopCount(n){
+  loopCount = n;
+  localStorage.setItem('loop_count', n);
+  updateLoopBtn();
+  document.querySelectorAll('.loop-count-btn').forEach(b =>
+    b.classList.toggle('active-settings', parseInt(b.dataset.count)===n));
+}
+function updateLoopBtn(){
+  const btn = document.getElementById('loop-btn');
+  const cntEl = document.getElementById('loop-count-display');
+  if(!btn || !cntEl) return;
+  if(loopActive){
+    btn.style.color = 'var(--blue)';
+    btn.style.borderColor = 'var(--blue)';
+    btn.style.background = 'var(--blue-bg)';
+    cntEl.textContent = loopRemaining;
+  } else {
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    btn.style.background = '';
+    cntEl.textContent = loopCount;
+  }
+}
+function toggleLoop(){
+  if(loopActive){ stopLoop(); return; }
+  loopActive = true;
+  loopRemaining = loopCount;
+  updateLoopBtn();
+  playSentence();
+}
+function stopLoop(){
+  loopActive = false;
+  loopRemaining = 0;
+  currentLoopUrl = null;
+  if(ttsAudio){ ttsAudio.pause(); ttsAudio = null; }
+  updateLoopBtn();
+  const pb = document.getElementById('play-btn');
+  if(pb){
+    pb.disabled = false;
+    pb.style.opacity = '1';
+    const svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+    pb.innerHTML = svg + ' ' + t('playAgain');
+  }
+  if(!isRecording) setRecLock(false);
+}
 function setSubFontSize(size){
   subFontSize = size;
   localStorage.setItem('sub_font_size', size);
@@ -1344,17 +1429,29 @@ function playSentence(){
 
   // Called when audio ends or errors out
   const onDone = () => {
+    ttsAudio = null;
+    if(loopActive){
+      loopRemaining--;
+      updateLoopBtn();
+      if(loopRemaining > 0 && currentLoopUrl){
+        setTimeout(()=>{ if(loopActive && currentLoopUrl) playUrl(currentLoopUrl); }, 700);
+        return;
+      }
+      loopActive = false;
+      currentLoopUrl = null;
+      updateLoopBtn();
+    }
     btn.innerHTML = playSvg+' '+t('playAgain');
     btn.disabled = false;
     btn.style.opacity = '1';
     if(!isRecording) setRecLock(false);
-    ttsAudio = null;
   };
 
   const playUrl = (url) => {
+    currentLoopUrl = url;
     ttsAudio = new Audio(url);
     ttsAudio.playbackRate = ttsSpeed;
-    ttsAudio.onplay   = onPlayStart;   // fires when audio actually starts
+    ttsAudio.onplay   = onPlayStart;
     ttsAudio.onended  = onDone;
     ttsAudio.onerror  = onDone;
     ttsAudio.play().catch(()=>{ onDone(); });
@@ -1968,10 +2065,18 @@ document.addEventListener('click', e => {
 
       <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px">📝 說明文字大小</div>
       <div style="display:flex;gap:6px">
-        <button class="settings-btn sub-font-size-btn" data-size="10" onclick="setSubFontSize(10)">極小</button>
-        <button class="settings-btn sub-font-size-btn" data-size="12" onclick="setSubFontSize(12)">小</button>
-        <button class="settings-btn sub-font-size-btn active-settings" data-size="14" onclick="setSubFontSize(14)">中</button>
-        <button class="settings-btn sub-font-size-btn" data-size="17" onclick="setSubFontSize(17)">大</button>
+        <button class="settings-btn sub-font-size-btn active-settings" data-size="14" onclick="setSubFontSize(14)">小</button>
+        <button class="settings-btn sub-font-size-btn" data-size="21" onclick="setSubFontSize(21)">中</button>
+        <button class="settings-btn sub-font-size-btn" data-size="32" onclick="setSubFontSize(32)">大</button>
+        <button class="settings-btn sub-font-size-btn" data-size="48" onclick="setSubFontSize(48)">極大</button>
+      </div>
+
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px">🔁 循環播放次數</div>
+      <div style="display:flex;gap:6px">
+        <button class="settings-btn loop-count-btn active-settings" data-count="5"  onclick="setLoopCount(5)">5次</button>
+        <button class="settings-btn loop-count-btn" data-count="10" onclick="setLoopCount(10)">10次</button>
+        <button class="settings-btn loop-count-btn" data-count="15" onclick="setLoopCount(15)">15次</button>
+        <button class="settings-btn loop-count-btn" data-count="20" onclick="setLoopCount(20)">20次</button>
       </div>
 
     </div>
