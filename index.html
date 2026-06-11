@@ -261,7 +261,7 @@
       <button id="aux-toggle" onclick="toggleAuxInfo()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);font-family:inherit">隱藏說明</button>
     </div>
     <div style="display:flex;align-items:stretch;gap:6px">
-      <button class="play-btn" id="play-btn" onclick="playSentence()" style="flex:1">
+      <button class="play-btn" id="play-btn" onclick="handlePlayClick()" style="flex:1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         聽範例發音
       </button>
@@ -1316,9 +1316,12 @@ function updateLoopBtn(){
 }
 function toggleLoop(){
   if(loopActive){ stopLoop(); return; }
+  // Mutual exclusion: stop recording if active
+  if(isRecording) stopRecording(true);
   loopActive = true;
   loopRemaining = loopCount;
   updateLoopBtn();
+  setRecLock(true);   // lock mic immediately, before TTS finishes loading
   playSentence();
 }
 function stopLoop(){
@@ -1326,6 +1329,7 @@ function stopLoop(){
   loopRemaining = 0;
   currentLoopUrl = null;
   if(ttsAudio){ ttsAudio.pause(); ttsAudio = null; }
+  window.speechSynthesis.cancel();
   updateLoopBtn();
   const pb = document.getElementById('play-btn');
   if(pb){
@@ -1404,6 +1408,12 @@ async function fetchTTSAudio(text, langCode){
   return URL.createObjectURL(wav);
 }
 
+function handlePlayClick(){
+  // Mutual exclusion: stop loop/recording before direct play
+  if(loopActive){ loopActive=false; loopRemaining=0; currentLoopUrl=null; updateLoopBtn(); }
+  if(isRecording) stopRecording(true);
+  playSentence();
+}
 function playSentence(){
   const langDB=DB[activeLang], set=getLangSet(), s=set.sentences[current];
   const btn=document.getElementById('play-btn');
@@ -1512,6 +1522,10 @@ window.speechSynthesis.onvoiceschanged = ()=>{};
 /* ── Recording (MediaRecorder) ── */
 async function toggleRecord(){
   if(isRecording){ stopRecording(false); return; }
+  // Mutual exclusion: stop any active TTS or loop
+  if(loopActive) stopLoop();
+  if(ttsAudio){ ttsAudio.pause(); ttsAudio=null; }
+  window.speechSynthesis.cancel();
   await startRecording();
 }
 
