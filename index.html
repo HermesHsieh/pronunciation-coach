@@ -288,8 +288,9 @@
         <div id="sent-translation" style="font-size:var(--sub-font-size,13px);color:var(--text2);line-height:1.5;flex:1"></div>
       </div>
       <div class="hint" id="sent-hint"></div>
-      <div style="display:flex;justify-content:flex-end">
-        <button id="aux-toggle" onclick="toggleAuxInfo()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);font-family:inherit">隱藏說明</button>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span id="best-score-chip" style="display:none;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px"></span>
+        <button id="aux-toggle" onclick="toggleAuxInfo()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);font-family:inherit;margin-left:auto">隱藏說明</button>
       </div>
     </div>
   </div>
@@ -298,6 +299,9 @@
   <div class="practice-footer">
     <!-- Play / Loop row (visible during idle and preview) -->
     <div id="footer-play-row" style="display:flex;align-items:stretch;gap:6px;margin-bottom:10px">
+      <button id="prev-sent-btn" onclick="prevSentence()" title="上一句" style="width:36px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-size:14px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
       <button class="play-btn" id="play-btn" onclick="handlePlayClick()" style="flex:1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         聽範例發音
@@ -308,6 +312,9 @@
       </button>
       <button id="clear-tts-btn" onclick="clearCurrentTTS()" title="清除此句語音暫存，重新載入" style="width:40px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+      </button>
+      <button id="next-sent-btn" onclick="nextSentence()" title="下一句" style="width:36px;border:0.5px solid var(--border2);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-size:14px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
 
@@ -1142,26 +1149,52 @@ function openList(){
   document.getElementById('modal-title').textContent=t('chooseList');
   const list=document.getElementById('modal-list');
   list.innerHTML='';
-  set.sentences.forEach((s,i)=>{
-    const best=bestScores[i];
-    const isCurrent = i===current;
-    const isDone = best!==undefined;
-    let scoreHtml='';
-    if(isDone){
-      const cls=best>=85?'chip-good':best>=60?'chip-ok':'chip-bad';
-      scoreHtml=`<span class="modal-item-score ${cls}">${best}分</span>`;
-    }
-    const item=document.createElement('div');
-    item.className='modal-item'+(isCurrent?' active-sent':'');
-    item.innerHTML=`
-      <div class="modal-item-num" style="${isDone?'background:var(--green-bg);color:var(--green-text);font-size:14px':''}">${isDone?'✓':i+1}</div>
-      <div class="modal-item-text">
-        <div class="modal-item-main">${s.text}</div>
-        <div class="modal-item-sub">${s.hint}</div>
-      </div>${scoreHtml}`;
-    item.onclick=()=>{ jumpTo(i); closeList(); };
-    list.appendChild(item);
-  });
+
+  if(isDailyMode && dailySession){
+    // Daily mode: show only the session's sentences; index = session position
+    dailySession.sentences.forEach((actualIdx, sessionPos)=>{
+      const s=set.sentences[actualIdx];
+      const best=bestScores[actualIdx];
+      const isCurrent=sessionPos===current;
+      const isDone=best!==undefined;
+      let scoreHtml='';
+      if(isDone){
+        const cls=best>=85?'chip-good':best>=60?'chip-ok':'chip-bad';
+        scoreHtml=`<span class="modal-item-score ${cls}">${best}分</span>`;
+      }
+      const item=document.createElement('div');
+      item.className='modal-item'+(isCurrent?' active-sent':'');
+      item.innerHTML=`
+        <div class="modal-item-num" style="${isDone?'background:var(--green-bg);color:var(--green-text);font-size:14px':''}">${isDone?'✓':sessionPos+1}</div>
+        <div class="modal-item-text">
+          <div class="modal-item-main">${s.text}</div>
+          <div class="modal-item-sub">${s.hint}</div>
+        </div>${scoreHtml}`;
+      item.onclick=()=>{ jumpTo(sessionPos); closeList(); };
+      list.appendChild(item);
+    });
+  } else {
+    set.sentences.forEach((s,i)=>{
+      const best=bestScores[i];
+      const isCurrent=i===current;
+      const isDone=best!==undefined;
+      let scoreHtml='';
+      if(isDone){
+        const cls=best>=85?'chip-good':best>=60?'chip-ok':'chip-bad';
+        scoreHtml=`<span class="modal-item-score ${cls}">${best}分</span>`;
+      }
+      const item=document.createElement('div');
+      item.className='modal-item'+(isCurrent?' active-sent':'');
+      item.innerHTML=`
+        <div class="modal-item-num" style="${isDone?'background:var(--green-bg);color:var(--green-text);font-size:14px':''}">${isDone?'✓':i+1}</div>
+        <div class="modal-item-text">
+          <div class="modal-item-main">${s.text}</div>
+          <div class="modal-item-sub">${s.hint}</div>
+        </div>${scoreHtml}`;
+      item.onclick=()=>{ jumpTo(i); closeList(); };
+      list.appendChild(item);
+    });
+  }
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
 function closeList(){ document.getElementById('modal-overlay').classList.add('hidden'); }
@@ -1393,6 +1426,25 @@ function loadSentence(){
   document.getElementById('rec-hint').textContent = t('tapRec');
   document.getElementById('rec-sub').textContent = t('tapStop');
 
+  // Best score chip
+  const chip=document.getElementById('best-score-chip');
+  const prevBest=bestScores[getActualSentenceIdx()];
+  if(prevBest!==undefined){
+    const cls=prevBest>=85?'chip-good':prevBest>=60?'chip-ok':'chip-bad';
+    chip.className=cls;
+    chip.textContent=`最佳 ${prevBest}分`;
+    chip.style.display='';
+  } else {
+    chip.style.display='none';
+  }
+
+  // Prev / next button states
+  const total2=getTotalCount();
+  const prevBtn=document.getElementById('prev-sent-btn');
+  const nextBtn=document.getElementById('next-sent-btn');
+  if(prevBtn){ prevBtn.style.opacity=current<=0?'0.3':''; prevBtn.style.pointerEvents=current<=0?'none':''; }
+  if(nextBtn){ nextBtn.style.opacity=current>=total2-1?'0.3':''; nextBtn.style.pointerEvents=current>=total2-1?'none':''; }
+
   // Generate illustration and pre-fetch next
   generateIllustration(activeLang, activeSet, getActualSentenceIdx());
   setTimeout(()=>prefetchNext(), 2000);
@@ -1616,7 +1668,7 @@ function handlePlayClick(){
   playSentence();
 }
 function playSentence(){
-  const langDB=DB[activeLang], set=getLangSet(), s=set.sentences[current];
+  const langDB=DB[activeLang], set=getLangSet(), s=getActiveSentence();
   const btn=document.getElementById('play-btn');
   const pauseSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></svg>`;
   const playSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
@@ -2192,6 +2244,12 @@ function retryRecord(){
   startRecording();
 }
 
+function prevSentence(){
+  if(current<=0) return;
+  current--;
+  if(isDailyMode) saveDailySession();
+  loadSentence();
+}
 function nextSentence(){
   const total=getTotalCount();
   current++;
