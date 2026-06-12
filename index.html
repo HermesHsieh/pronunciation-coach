@@ -89,6 +89,10 @@
   .set-option{display:flex;align-items:center;gap:12px;padding:14px 16px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);cursor:pointer;transition:background .15s}
   .set-option:active{background:var(--bg2)}
   .set-option.selected-set{border:2px solid var(--blue);background:var(--blue-bg)}
+  .daily-btn{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-radius:var(--radius-sm);border:0.5px dashed var(--blue);background:var(--blue-bg);cursor:pointer;transition:background .15s;margin-top:-4px}
+  .daily-btn:active{background:var(--bg3)}
+  .daily-btn-label{font-size:14px;font-weight:600;color:var(--blue-text)}
+  .daily-btn-progress{font-size:12px;color:var(--blue-text);opacity:.75}
   .set-icon{font-size:20px;flex-shrink:0}
   .set-info{flex:1}
   .set-name{font-size:15px;font-weight:600;color:var(--text)}
@@ -405,7 +409,7 @@
 <!-- ③ 總結 -->
 <div class="screen summary-screen" id="screen-summary">
   <div class="summary-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-  <div class="summary-title">練習完成！</div>
+  <div class="summary-title" id="sum-title">練習完成！</div>
   <div class="summary-subtitle" id="sum-subtitle">今天的發音練習已結束</div>
   <div class="big-score" id="sum-score">—</div>
   <div class="big-score-label">今日平均分</div>
@@ -601,6 +605,7 @@ const DB = {
 
 const PASS_SCORE = 60;
 let activeLang=null, activeSet='free', nativeLang='zh', showAuxInfo=true;
+let isDailyMode=false, dailySession=null, dailyCount=10;
 let loopCount=5, loopActive=false, loopRemaining=0, currentLoopUrl=null;
 let current=0, scores={}, bestScores={};
 let mediaRecorder=null, audioChunks=[], isRecording=false;
@@ -642,6 +647,10 @@ const I18N = {
     avgScore:'今日平均分', perfectLabel:'優秀句數', timeLabel:'練習時長',
     streakLabelSum:'連續天數', minUnit:'分鐘',
     changeLang:'換語言', restartBtn:'再練一次',
+    dailyBtn:'🎲 每日快練', dailyProgress:(c,t)=>`今日 ${c}/${t}`,
+    dailyTitle:'今日快練完成！', dailySub:'明天再來挑戰新的一組',
+    dailyUnlockHint:'完成全部句子後解鎖',
+    dailyCountLabel:'每日練習句數',
   },
   en: {
     appTitle:'Pronunciation', appSub:'5–10 min a day builds fluency',
@@ -672,6 +681,10 @@ const I18N = {
     avgScore:'Avg score today', perfectLabel:'Excellent', timeLabel:'Duration',
     streakLabelSum:'Day streak', minUnit:'min',
     changeLang:'Change language', restartBtn:'Practice again',
+    dailyBtn:'🎲 Daily Practice', dailyProgress:(c,t)=>`Today ${c}/${t}`,
+    dailyTitle:'Daily session done!', dailySub:'Come back tomorrow for a new set',
+    dailyUnlockHint:'Complete all sentences to unlock',
+    dailyCountLabel:'Daily sentence count',
   },
   ja: {
     appTitle:'発音練習', appSub:'毎日5〜10分で上達',
@@ -702,6 +715,10 @@ const I18N = {
     avgScore:'今日の平均点', perfectLabel:'優秀な文', timeLabel:'練習時間',
     streakLabelSum:'連続日数', minUnit:'分',
     changeLang:'言語を変える', restartBtn:'もう一度練習',
+    dailyBtn:'🎲 毎日練習', dailyProgress:(c,t)=>`今日 ${c}/${t}`,
+    dailyTitle:'今日の練習完了！', dailySub:'また明日新しいセットに挑戦しよう',
+    dailyUnlockHint:'全文完了後に解放',
+    dailyCountLabel:'毎日の練習文数',
   }
 };
 function t(key, ...args){
@@ -718,9 +735,70 @@ function loadKey(){
   subFontSize  = parseInt(localStorage.getItem('sub_font_size')||'14');
   ttsSpeed     = parseFloat(localStorage.getItem('tts_speed')||'0.8');
   loopCount    = parseInt(localStorage.getItem('loop_count')||'5');
+  dailyCount   = parseInt(localStorage.getItem('daily_count')||'10');
   document.documentElement.style.setProperty('--sent-font-size', sentFontSize+'px');
   document.documentElement.style.setProperty('--sub-font-size',  subFontSize+'px');
 }
+
+/* ── Daily practice helpers ── */
+function getActualSentenceIdx(){
+  if(isDailyMode && dailySession) return dailySession.sentences[current];
+  return current;
+}
+function getActiveSentence(){
+  return getLangSet().sentences[getActualSentenceIdx()];
+}
+function getTotalCount(){
+  if(isDailyMode && dailySession) return dailySession.sentences.length;
+  return getLangSet().sentences.length;
+}
+function isSetCompleted(lang, set){
+  const p = loadProgress();
+  const best = p[`${lang}-${set}`]?.bestScores || {};
+  const total = DB[lang]?.sets?.[set]?.sentences?.length || 0;
+  return total > 0 && Object.keys(best).length >= total;
+}
+function getDailySessionKey(){ return `daily_${activeLang}_${activeSet}`; }
+function saveDailySession(){
+  if(!isDailyMode || !dailySession) return;
+  dailySession.current = current;
+  localStorage.setItem(getDailySessionKey(), JSON.stringify(dailySession));
+}
+function loadOrCreateDailySession(){
+  const key = getDailySessionKey();
+  const today = new Date().toISOString().slice(0,10);
+  const stored = JSON.parse(localStorage.getItem(key)||'null');
+  if(stored && stored.date === today) return stored;
+
+  const set = getLangSet();
+  const total = set.sentences.length;
+  const count = Math.min(dailyCount, total);
+  const best = loadBestScores();
+
+  // Weighted random selection: lower score → higher weight
+  const pool = Array.from({length:total},(_,i)=>({idx:i, weight:1+Math.max(0,100-(best[i]||0))}));
+  const selected = [];
+  const rem = [...pool];
+  for(let n=0; n<count && rem.length; n++){
+    const totalW = rem.reduce((s,x)=>s+x.weight,0);
+    let rand = Math.random()*totalW;
+    for(let j=0; j<rem.length; j++){
+      rand -= rem[j].weight;
+      if(rand<=0){ selected.push(rem[j].idx); rem.splice(j,1); break; }
+    }
+  }
+
+  const session = {date:today, sentences:selected, current:0};
+  localStorage.setItem(key, JSON.stringify(session));
+  return session;
+}
+function setDailyCount(n){
+  dailyCount = n;
+  localStorage.setItem('daily_count', n);
+  document.querySelectorAll('.daily-count-btn').forEach(b=>
+    b.classList.toggle('active-settings', parseInt(b.dataset.count)===n));
+}
+
 function saveKey(){
   const ak = document.getElementById('azure-key-input').value.trim();
   const ar = document.getElementById('azure-region-input').value;
@@ -798,6 +876,28 @@ function selectLang(el){
         </div>`;
       div.onclick = () => selectSet(div, key);
       setOptions.appendChild(div);
+
+      // Daily practice button — shown when all sentences in this set have been practiced
+      const completed = isSetCompleted(activeLang, key);
+      if(completed){
+        const stored = JSON.parse(localStorage.getItem(`daily_${activeLang}_${key}`)||'null');
+        const today = new Date().toISOString().slice(0,10);
+        const todaySession = stored?.date===today ? stored : null;
+        const pos = todaySession ? todaySession.current : 0;
+        const total = Math.min(parseInt(localStorage.getItem('daily_count')||'10'), s.sentences.length);
+        const done = todaySession && (todaySession.done || pos >= total);
+        const progressLabel = done
+          ? `✅ ${t('dailyProgress', total, total)}`
+          : todaySession && pos > 0
+            ? t('dailyProgress', pos, total)
+            : `0/${total}`;
+        const dbtn = document.createElement('div');
+        dbtn.className = 'daily-btn';
+        dbtn.innerHTML = `<span class="daily-btn-label">${t('dailyBtn')}</span><span class="daily-btn-progress">${progressLabel}</span>`;
+        if(!done) dbtn.onclick = () => startDailyPractice(key);
+        else dbtn.style.cursor = 'default';
+        setOptions.appendChild(dbtn);
+      }
     });
   } else {
     setSection.style.display = 'none';
@@ -929,9 +1029,30 @@ function getStreak(){
   return 0; // streak broken
 }
 
+function startDailyPractice(setKey){
+  if(!activeLang) return;
+  if(!azureKey && !geminiKey){ openKeyModal(); return; }
+  activeSet = setKey;
+  isDailyMode = true;
+  dailySession = loadOrCreateDailySession();
+  bestScores = loadBestScores();
+  streak = getStreak();
+  startTime = Date.now();
+  current = dailySession.current;
+  scores = {};
+  document.getElementById('lang-pill').textContent = DB[activeLang].pill;
+  const streakEl = document.getElementById('streak-display');
+  if(streakEl){ if(streak>0){streakEl.textContent=`🔥 ${streak}`;streakEl.style.display='';}else{streakEl.style.display='none';} }
+  applyI18n();
+  loadSentence();
+  showScreen('screen-practice');
+}
+
 function startPractice(){
   if(!activeLang)return;
   if(!azureKey && !geminiKey){ openKeyModal(); return; }
+  isDailyMode = false;
+  dailySession = null;
 
   // Load saved progress for this lang+set
   const p = loadProgress();
@@ -1186,8 +1307,13 @@ async function generateIllustration(langKey, setKey, index){
 }
 
 function prefetchNext(){
-  const set=getLangSet();
-  if(current+1 < set.sentences.length) generateIllustrationBg(activeLang, activeSet, current+1);
+  const nextPos = current + 1;
+  const total = getTotalCount();
+  if(nextPos >= total) return;
+  const nextActualIdx = isDailyMode && dailySession
+    ? dailySession.sentences[nextPos]
+    : nextPos;
+  generateIllustrationBg(activeLang, activeSet, nextActualIdx);
 }
 async function generateIllustrationBg(langKey, setKey, index){
   const cacheKey = `${langKey}-${setKey}-${index}`;
@@ -1202,7 +1328,7 @@ async function generateIllustrationBg(langKey, setKey, index){
   } catch(e) {}
 }
 function loadSentence(){
-  const set=getLangSet(), s=set.sentences[current], total=set.sentences.length;
+  const set=getLangSet(), s=getActiveSentence(), total=getTotalCount();
   document.getElementById('sent-text').textContent=s.text;
   // Support HTML ruby tags for furigana (Japanese), plain text for others
   // Stop loop when navigating sentences
@@ -1228,9 +1354,9 @@ function loadSentence(){
     hintEl.style.display = 'none';
   }
 
-  // Translation
+  // Translation — use actual sentence index (daily mode remaps current)
   const transList = set.translations?.[nativeLang];
-  const transText = transList?.[current] || '';
+  const transText = transList?.[getActualSentenceIdx()] || '';
   const transEl = document.getElementById('sent-translation');
   const transRow = document.getElementById('translation-row');
   if(transText){
@@ -1244,7 +1370,9 @@ function loadSentence(){
   const auxBtn = document.getElementById('aux-toggle');
   if(auxBtn) auxBtn.textContent = showAuxInfo ? '隱藏說明' : '顯示說明';
 
-  document.getElementById('prog-label').textContent = `${current+1}/${total}`;
+  document.getElementById('prog-label').textContent = isDailyMode
+    ? t('dailyProgress', current+1, total)
+    : `${current+1}/${total}`;
   document.getElementById('prog-bar').style.width=(current/total*100)+'%';
 
   const playSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
@@ -1266,7 +1394,7 @@ function loadSentence(){
   document.getElementById('rec-sub').textContent = t('tapStop');
 
   // Generate illustration and pre-fetch next
-  generateIllustration(activeLang, activeSet, current);
+  generateIllustration(activeLang, activeSet, getActualSentenceIdx());
   setTimeout(()=>prefetchNext(), 2000);
 }
 
@@ -1326,7 +1454,7 @@ async function ttsCacheLoad(key){
 async function clearCurrentTTS(){
   const set = getLangSet(), s = set.sentences[current];
   const textSlug = s.text.replace(/\s/g,'').slice(0,10);
-  const cacheKey = `${activeLang}-${activeSet}-${current}-${textSlug}`;
+  const cacheKey = `${activeLang}-${activeSet}-${getActualSentenceIdx()}-${textSlug}`;
   // Clear memory cache
   if(ttsCache[cacheKey]){ URL.revokeObjectURL(ttsCache[cacheKey]); delete ttsCache[cacheKey]; }
   // Clear IndexedDB
@@ -1500,7 +1628,7 @@ function playSentence(){
 
   // Include set + text slug so stale cache is auto-skipped when sentences change
   const textSlug = s.text.replace(/\s/g,'').slice(0,10);
-  const cacheKey = `${activeLang}-${activeSet}-${current}-${textSlug}`;
+  const cacheKey = `${activeLang}-${activeSet}-${getActualSentenceIdx()}-${textSlug}`;
 
   // Called when audio actually starts playing
   const onPlayStart = () => {
@@ -1721,7 +1849,7 @@ async function submitToAI(){
   if(previewAudio){ previewAudio.pause(); previewAudio=null; }
   if(!lastBlob) return;
 
-  const set=getLangSet(), s=set.sentences[current];
+  const s=getActiveSentence();
   const blob = lastBlob;
   const blobKB = (blob.size/1024).toFixed(1);
 
@@ -1741,10 +1869,12 @@ async function submitToAI(){
     feedbackText=t('apiError')+err.message; heardText='';
   }
 
-  const prev=bestScores[current];
-  if(prev===undefined||score>prev) bestScores[current]=score;
-  scores[current]=bestScores[current];
+  const actualIdx = getActualSentenceIdx();
+  const prev=bestScores[actualIdx];
+  if(prev===undefined||score>prev) bestScores[actualIdx]=score;
+  scores[current]=bestScores[actualIdx];
   saveCurrentProgress();
+  saveDailySession();
 
   document.getElementById('transcript-row').innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px">
@@ -2063,9 +2193,13 @@ function retryRecord(){
 }
 
 function nextSentence(){
-  const total=getLangSet().sentences.length;
+  const total=getTotalCount();
   current++;
-  if(current>=total){showSummary();return;}
+  if(current>=total){
+    if(isDailyMode){showDailySummary();return;}
+    showSummary();return;
+  }
+  if(isDailyMode) saveDailySession();
   loadSentence();
 }
 
@@ -2074,6 +2208,7 @@ function showSummary(){
   const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
   const perfect=vals.filter(s=>s>=85).length;
   const mins=Math.max(1,Math.round((Date.now()-startTime)/60000));
+  document.getElementById('sum-title').textContent=t('summaryTitle');
   document.getElementById('sum-score').textContent=avg||'—';
   document.getElementById('sum-subtitle').textContent=t('summarySub');
   document.getElementById('sum-perfect').textContent=perfect+'/'+getLangSet().sentences.length;
@@ -2083,7 +2218,24 @@ function showSummary(){
   showScreen('screen-summary');
 }
 
+function showDailySummary(){
+  const vals=Object.values(scores);
+  const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
+  const perfect=vals.filter(s=>s>=85).length;
+  const mins=Math.max(1,Math.round((Date.now()-startTime)/60000));
+  document.getElementById('sum-title').textContent=t('dailyTitle');
+  document.getElementById('sum-score').textContent=avg||'—';
+  document.getElementById('sum-subtitle').textContent=t('dailySub');
+  document.getElementById('sum-perfect').textContent=perfect+'/'+getTotalCount();
+  document.getElementById('sum-time').textContent=mins+' '+t('minUnit');
+  document.getElementById('sum-streak').textContent=(streak+1);
+  document.getElementById('prog-bar').style.width='100%';
+  if(dailySession){ dailySession.done=true; saveDailySession(); }
+  showScreen('screen-summary');
+}
+
 loadKey();
+setDailyCount(dailyCount);
 applyI18n();
 window.speechSynthesis&&window.speechSynthesis.getVoices();
 
@@ -2169,6 +2321,14 @@ document.addEventListener('click', e => {
         <button class="settings-btn loop-count-btn" data-count="10" onclick="setLoopCount(10)">10次</button>
         <button class="settings-btn loop-count-btn" data-count="15" onclick="setLoopCount(15)">15次</button>
         <button class="settings-btn loop-count-btn" data-count="20" onclick="setLoopCount(20)">20次</button>
+      </div>
+
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-top:4px" id="daily-count-label">🎲 每日練習句數</div>
+      <div style="display:flex;gap:6px">
+        <button class="settings-btn daily-count-btn" data-count="5"  onclick="setDailyCount(5)">5句</button>
+        <button class="settings-btn daily-count-btn active-settings" data-count="10" onclick="setDailyCount(10)">10句</button>
+        <button class="settings-btn daily-count-btn" data-count="15" onclick="setDailyCount(15)">15句</button>
+        <button class="settings-btn daily-count-btn" data-count="20" onclick="setDailyCount(20)">20句</button>
       </div>
 
     </div>
