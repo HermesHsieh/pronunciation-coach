@@ -171,6 +171,29 @@
   .restart-btn:active{opacity:.8}
   .change-lang-btn{flex:1;padding:15px;font-size:15px;font-weight:600;background:transparent;color:var(--text);border:0.5px solid var(--border2);border-radius:var(--radius);cursor:pointer;font-family:inherit}
   .change-lang-btn:active{background:var(--bg2)}
+
+  /* ── Practice screen: fixed header + scrollable body + fixed footer ── */
+  #screen-practice{height:100dvh;overflow:hidden;padding:0}
+  .practice-header{flex-shrink:0;padding:14px 20px 0;background:var(--bg)}
+  .practice-header .top-bar{margin-bottom:8px}
+  .practice-header .progress-track{margin-bottom:0;border-radius:0}
+  .practice-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 20px 4px}
+  .practice-body .sentence-card{margin-bottom:0}
+  .practice-footer{flex-shrink:0;background:var(--bg);border-top:0.5px solid var(--border);padding:10px 20px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+  .practice-footer .rec-area{flex:0 0 auto;padding:4px 0 2px}
+  .prog-count{font-size:12px;color:var(--text3);font-weight:500;min-width:28px;text-align:center}
+  .streak-chip{font-size:11px;color:var(--amber-text);background:var(--amber-bg);padding:2px 8px;border-radius:10px;font-weight:500}
+
+  /* ── Result modal (slide-up sheet) ── */
+  .result-modal{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;animation:fadeInBg .2s ease}
+  @keyframes fadeInBg{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,.5)}}
+  .result-sheet{background:var(--bg);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:88dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));animation:slideUpSheet .28s cubic-bezier(.16,1,.3,1)}
+  @keyframes slideUpSheet{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .result-drag-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 0}
+  .score-circle-wrap{position:relative;width:120px;height:120px;margin:0 auto}
+  .score-circle-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .score-big{font-size:40px;font-weight:700;line-height:1}
+  .score-label-sm{font-size:11px;color:var(--text2);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 </style>
 </head>
 <body>
@@ -220,47 +243,57 @@
 </div>
 
 <!-- ② 練習 -->
-<div class="screen" id="screen-practice" style="overflow-y:auto">
-  <div class="top-bar">
-    <button class="back-btn" onclick="goBack()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      換語言
-    </button>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="list-btn" onclick="openKeyModal()" style="padding:6px 10px" title="API Key 設定">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+<div class="screen" id="screen-practice">
+  <!-- Fixed header: back/nav + thin progress bar -->
+  <div class="practice-header">
+    <div class="top-bar">
+      <button class="back-btn" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        換語言
       </button>
-      <button class="list-btn" onclick="openList()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-        選句
-      </button>
-      <span class="lang-pill" id="lang-pill">普通話</span>
-    </div>
-  </div>
-  <div class="progress-row">
-    <span class="progress-label" id="prog-label">第 1 句，共 5 句</span>
-    <span class="streak-label" id="streak-display">🔥 0 天連續</span>
-  </div>
-  <div class="progress-track"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>
-  <div class="sentence-card">
-    <div id="illus-wrap" style="width:100%;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:12px;background:var(--bg2);min-height:120px;max-height:180px;display:flex;align-items:center;justify-content:center;position:relative">
-      <div id="illus-skeleton" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:8px;flex-direction:column">
-        <div style="width:32px;height:32px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite"></div>
-        <div style="font-size:12px;color:var(--text3)">生成插圖中…</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="prog-count" id="prog-label">1/5</span>
+        <span class="streak-chip" id="streak-display" style="display:none">🔥 0</span>
+        <button class="list-btn" onclick="openKeyModal()" style="padding:6px 10px" title="API Key 設定">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button class="list-btn" onclick="openList()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          選句
+        </button>
+        <span class="lang-pill" id="lang-pill">普通話</span>
       </div>
-      <img id="illus-img" style="width:100%;height:180px;object-fit:cover;display:none;border-radius:var(--radius-sm)" alt="sentence illustration">
-      <div id="illus-error" style="display:none;font-size:12px;color:var(--text3);padding:16px;text-align:center"></div>
     </div>
-    <div class="sentence-text" id="sent-text"></div>
-    <div class="pinyin" id="sent-pinyin"></div>
-    <div id="translation-row" style="display:flex;align-items:center;margin-bottom:6px">
-      <div id="sent-translation" style="font-size:var(--sub-font-size,13px);color:var(--text2);line-height:1.5;flex:1"></div>
+    <div class="progress-track"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>
+  </div>
+
+  <!-- Scrollable body: sentence card only -->
+  <div class="practice-body">
+    <div class="sentence-card">
+      <div id="illus-wrap" style="width:100%;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;background:var(--bg2);min-height:60px;max-height:100px;display:flex;align-items:center;justify-content:center;position:relative">
+        <div id="illus-skeleton" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px;flex-direction:column">
+          <div style="width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite"></div>
+          <div style="font-size:11px;color:var(--text3)">生成插圖中…</div>
+        </div>
+        <img id="illus-img" style="width:100%;height:100px;object-fit:cover;display:none;border-radius:var(--radius-sm)" alt="sentence illustration">
+        <div id="illus-error" style="display:none;font-size:11px;color:var(--text3);padding:10px;text-align:center"></div>
+      </div>
+      <div class="sentence-text" id="sent-text"></div>
+      <div class="pinyin" id="sent-pinyin"></div>
+      <div id="translation-row" style="display:flex;align-items:center;margin-bottom:6px">
+        <div id="sent-translation" style="font-size:var(--sub-font-size,13px);color:var(--text2);line-height:1.5;flex:1"></div>
+      </div>
+      <div class="hint" id="sent-hint"></div>
+      <div style="display:flex;justify-content:flex-end">
+        <button id="aux-toggle" onclick="toggleAuxInfo()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);font-family:inherit">隱藏說明</button>
+      </div>
     </div>
-    <div class="hint" id="sent-hint"></div>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-      <button id="aux-toggle" onclick="toggleAuxInfo()" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:11px;color:var(--text3);font-family:inherit">隱藏說明</button>
-    </div>
-    <div style="display:flex;align-items:stretch;gap:6px">
+  </div>
+
+  <!-- Fixed footer: all action controls -->
+  <div class="practice-footer">
+    <!-- Play / Loop row (visible during idle and preview) -->
+    <div id="footer-play-row" style="display:flex;align-items:stretch;gap:6px;margin-bottom:10px">
       <button class="play-btn" id="play-btn" onclick="handlePlayClick()" style="flex:1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         聽範例發音
@@ -273,78 +306,95 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
       </button>
     </div>
-  </div>
-  <div class="rec-area" id="rec-area">
-    <div class="rec-ring" id="rec-ring" onclick="toggleRecord()">
-      <svg id="rec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-        <line x1="12" y1="19" x2="12" y2="22"/>
-        <line x1="8" y1="22" x2="16" y2="22"/>
-      </svg>
-    </div>
-    <div class="rec-hint" id="rec-hint">按下麥克風開始跟讀</div>
-    <div class="rec-sub" id="rec-sub">說完後再按一次停止</div>
-  </div>
 
-  <!-- 錄音預覽區：聽自己聲音後決定送出或重錄 -->
-  <div id="preview-section" style="display:none;flex-direction:column;align-items:center;padding:12px 0 8px">
-    <!-- 播放錄音列 -->
-    <div style="width:100%;display:flex;align-items:center;gap:12px;background:var(--bg2);border-radius:var(--radius);padding:12px 16px;margin-bottom:22px">
-      <button id="preview-play-btn" onclick="playPreview(this)" style="width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;color:var(--blue)"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      </button>
-      <div style="flex:1">
-        <div style="font-size:14px;font-weight:500;color:var(--text)" id="preview-title">聽聽你的錄音</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:2px" id="preview-sub">確認後送出 AI 評分</div>
+    <!-- State A: Idle — mic ring -->
+    <div class="rec-area" id="rec-area">
+      <div class="rec-ring" id="rec-ring" onclick="toggleRecord()">
+        <svg id="rec-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="8" y1="22" x2="16" y2="22"/>
+        </svg>
       </div>
+      <div class="rec-hint" id="rec-hint">按下麥克風開始跟讀</div>
+      <div class="rec-sub" id="rec-sub">說完後再按一次停止</div>
     </div>
-    <!-- 麥克風環形重錄按鈕 -->
-    <div class="rec-ring" id="preview-rec-ring" onclick="retryFromPreview()" style="margin-bottom:10px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:34px;height:34px;color:var(--text2)">
-        <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-        <line x1="12" y1="19" x2="12" y2="22"/>
-        <line x1="8" y1="22" x2="16" y2="22"/>
-      </svg>
+
+    <!-- State B: Preview — [▶ 聽錄音] + [🎙 重錄] side by side, submit below -->
+    <div id="preview-section" style="display:none">
+      <div style="display:flex;justify-content:center;gap:36px;padding:4px 0 12px">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <button id="preview-play-btn" onclick="playPreview(this)" style="width:62px;height:62px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--blue)"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <span id="preview-title" style="font-size:12px;color:var(--text2)">聽錄音</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <button id="preview-rec-ring" onclick="retryFromPreview()" style="width:62px;height:62px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--text2)">
+              <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+              <line x1="8" y1="22" x2="16" y2="22"/>
+            </svg>
+          </button>
+          <span id="preview-retry-label" style="font-size:12px;color:var(--text2)">重錄</span>
+        </div>
+      </div>
+      <button class="next-btn" style="width:100%" onclick="submitToAI()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+        <span id="preview-submit-label">送出評分</span>
+      </button>
     </div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:20px" id="preview-retry-label">重新錄音</div>
-    <!-- 送出按鈕 -->
-    <button class="next-btn" style="width:100%" onclick="submitToAI()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
-      <span id="preview-submit-label">送出評分</span>
-    </button>
-  </div>
-  <div id="result-section" style="display:none;">
-    <div class="transcript-row" id="transcript-row"></div>
-    <div id="ai-loading" class="ai-loading" style="display:none">
+
+    <!-- State C: Loading — AI analysis in progress -->
+    <div id="ai-loading" class="ai-loading" style="display:none;justify-content:center;padding:12px 0">
       <div class="ai-spinner"></div>
       <div class="ai-loading-text" id="ai-loading-text">AI 分析發音中…</div>
     </div>
-    <div class="sentence-card" id="result-card" style="display:none">
-      <div class="score-header">
-        <div class="score-badge" id="score-badge"></div>
-        <div class="score-info">
-          <div class="score-grade" id="score-grade"></div>
-          <div class="score-sub" id="score-sub"></div>
+  </div>
+</div>
+
+<!-- 評分結果 Pop-up (fixed overlay, slides up from bottom) -->
+<div class="result-modal" id="result-section" style="display:none">
+  <div class="result-sheet">
+    <div class="result-drag-handle"></div>
+    <!-- Big score circle -->
+    <div style="text-align:center;padding:18px 0 12px">
+      <div class="score-circle-wrap">
+        <svg viewBox="0 0 120 120" style="width:120px;height:120px;transform:rotate(-90deg)">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" stroke-width="8"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke-width="8"
+            stroke="var(--green-text)" stroke-dasharray="326.7" stroke-dashoffset="326.7"
+            stroke-linecap="round" id="score-ring-arc"/>
+        </svg>
+        <div class="score-circle-num">
+          <span class="score-big" id="score-badge">—</span>
+          <span class="score-label-sm" id="score-grade"></span>
         </div>
       </div>
+      <div id="score-sub" style="font-size:12px;color:var(--text2);margin-top:8px;min-height:18px"></div>
+    </div>
+    <!-- AI heard + play my rec -->
+    <div class="transcript-row" id="transcript-row"></div>
+    <!-- Word chips + feedback -->
+    <div id="result-card">
       <div class="words-row" id="words-row"></div>
       <div class="feedback" id="feedback-text"></div>
     </div>
-    <div style="position:sticky;bottom:0;background:var(--bg);padding:12px 0 4px;margin-top:12px;display:flex;align-items:center;gap:10px">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
-        <button id="retry-btn" onclick="retryRecord()" style="width:52px;height:52px;border-radius:50%;border:1.5px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:var(--text2)">
-            <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="22"/>
-            <line x1="8" y1="22" x2="16" y2="22"/>
-          </svg>
-        </button>
-        <span style="font-size:11px;color:var(--text3)">重錄</span>
-      </div>
-      <button class="next-btn" id="next-btn" onclick="nextSentence()" style="flex:1">
+    <!-- Action buttons -->
+    <div style="display:flex;gap:10px;margin-top:16px;margin-bottom:4px">
+      <button id="retry-btn" onclick="retryRecord()" class="retry-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px">
+          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="8" y1="22" x2="16" y2="22"/>
+        </svg>
+        重錄
+      </button>
+      <button class="next-btn" id="next-btn" onclick="nextSentence()">
         <span id="next-label">下一句</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
       </button>
@@ -576,9 +626,12 @@ const I18N = {
     waitPlay:'播放結束後才能錄音',
     tapRec:'按下麥克風開始跟讀', tapStop:'說完後再按一次停止',
     recording:'錄音中…', processing:'處理中…', analysing:'Gemini 聆聽分析中…',
+    converting:'轉換音頻中…', azureAnalysing:'Azure 分析發音中…',
+    azureError:(m)=>`⚠️ Azure 錯誤，改用 Gemini… (${m})`, geminiAnalysing:'Gemini 分析中…',
+    apiError:'API 錯誤：',
     noSpeech:'未偵測到聲音，請再試一次', noMic:'請允許麥克風權限後重試',
-    retryBtn:'錄製', nextBtn:'下一句', finalBtn:'查看今日結果',
-    previewTitle:'聽聽你的錄音', previewSub:'確認後再送出 AI 評分',
+    retryBtn:'重錄', nextBtn:'下一句', finalBtn:'查看今日結果',
+    previewTitle:'聽錄音', previewSub:'確認後再送出 AI 評分',
     submitBtn:'送出評分',
     aiHeard:'AI 聽到', playMyRec:'聽自己的錄音',
     scoreLocked:(min)=>`分數需達 ${min} 分才能繼續`,
@@ -603,9 +656,12 @@ const I18N = {
     waitPlay:'Wait for playback to finish…',
     tapRec:'Tap to start recording', tapStop:'Tap again when done',
     recording:'Recording…', processing:'Processing…', analysing:'Gemini analysing audio…',
+    converting:'Converting audio…', azureAnalysing:'Azure analysing pronunciation…',
+    azureError:(m)=>`⚠️ Azure error, using Gemini… (${m})`, geminiAnalysing:'Gemini analysing…',
+    apiError:'API error: ',
     noSpeech:'No speech detected. Try again.', noMic:'Please allow microphone access',
-    retryBtn:'Record', nextBtn:'Next', finalBtn:'See results',
-    previewTitle:'Listen to your recording', previewSub:'Submit for AI scoring when ready',
+    retryBtn:'Re-record', nextBtn:'Next', finalBtn:'See results',
+    previewTitle:'Listen back', previewSub:'Submit for AI scoring when ready',
     submitBtn:'Submit for scoring',
     aiHeard:'AI heard', playMyRec:'Play my recording',
     scoreLocked:(min)=>`Need ${min}+ to continue`,
@@ -630,9 +686,12 @@ const I18N = {
     waitPlay:'再生終了後に録音できます',
     tapRec:'マイクをタップして読む', tapStop:'終わったらもう一度タップ',
     recording:'録音中…', processing:'処理中…', analysing:'Gemini が音声を分析中…',
+    converting:'音声を変換中…', azureAnalysing:'Azure が発音を分析中…',
+    azureError:(m)=>`⚠️ Azure エラー、Geminiに切替… (${m})`, geminiAnalysing:'Gemini が分析中…',
+    apiError:'API エラー：',
     noSpeech:'音声が検出されません。もう一度試してください。', noMic:'マイクのアクセスを許可してください',
-    retryBtn:'録音', nextBtn:'次へ', finalBtn:'結果を見る',
-    previewTitle:'録音を確認する', previewSub:'よければAI採点へ送信',
+    retryBtn:'録り直す', nextBtn:'次へ', finalBtn:'結果を見る',
+    previewTitle:'録音を確認', previewSub:'よければAI採点へ送信',
     submitBtn:'採点する',
     aiHeard:'AIが聞いた', playMyRec:'録音を聴く',
     scoreLocked:(min)=>`${min}点以上で次へ進めます`,
@@ -900,7 +959,10 @@ function startPractice(){
 
   // Streak display
   const streakEl = document.getElementById('streak-display');
-  if(streakEl) streakEl.textContent = streak > 0 ? `🔥 ${streak} ${t('streakLabel')}` : '';
+  if(streakEl){
+    if(streak > 0){ streakEl.textContent = `🔥 ${streak}`; streakEl.style.display=''; }
+    else { streakEl.style.display='none'; }
+  }
 
   applyI18n();
   loadSentence();
@@ -1182,18 +1244,18 @@ function loadSentence(){
   const auxBtn = document.getElementById('aux-toggle');
   if(auxBtn) auxBtn.textContent = showAuxInfo ? '隱藏說明' : '顯示說明';
 
-  document.getElementById('prog-label').textContent = t('sentenceOf', current+1, total);
+  document.getElementById('prog-label').textContent = `${current+1}/${total}`;
   document.getElementById('prog-bar').style.width=(current/total*100)+'%';
 
   const playSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
   document.getElementById('play-btn').innerHTML=playSvg+' '+t('playBtn');
   document.getElementById('play-btn').disabled=false;
 
+  document.getElementById('footer-play-row').style.display='flex';
   document.getElementById('rec-area').style.display='flex';
   document.getElementById('preview-section').style.display='none';
   document.getElementById('result-section').style.display='none';
   document.getElementById('ai-loading').style.display='none';
-  document.getElementById('result-card').style.display='none';
   document.getElementById('transcript-row').innerHTML='';
   document.getElementById('rec-ring').classList.remove('recording');
   document.getElementById('rec-ring').style.opacity='1';
@@ -1606,13 +1668,12 @@ async function processAudio(){
   lastRecordingUrl = URL.createObjectURL(blob);
   lastBlob = blob;
 
-  // Show preview section
+  // Show preview state in footer
   document.getElementById('rec-area').style.display='none';
-  document.getElementById('preview-section').style.display='flex';
   document.getElementById('result-section').style.display='none';
+  document.getElementById('preview-section').style.display='block';
 
   document.getElementById('preview-title').textContent = t('previewTitle');
-  document.getElementById('preview-sub').textContent = t('previewSub');
   document.getElementById('preview-retry-label').textContent = t('retryBtn');
   document.getElementById('preview-submit-label').textContent = t('submitBtn');
 
@@ -1665,13 +1726,9 @@ async function submitToAI(){
   const blobKB = (blob.size/1024).toFixed(1);
 
   document.getElementById('preview-section').style.display='none';
-  document.getElementById('result-section').style.display='block';
-  setTimeout(()=>document.getElementById('result-section').scrollIntoView({behavior:'smooth', block:'start'}), 100);
+  document.getElementById('footer-play-row').style.display='none';
   document.getElementById('ai-loading').style.display='flex';
   document.getElementById('ai-loading-text').textContent = t('analysing')+` (${blobKB}KB)`;
-  document.getElementById('result-card').style.display='none';
-  document.getElementById('next-btn').disabled=true;
-  document.getElementById('retry-btn').disabled=true;
 
   let score, wordResults, feedbackText, heardText;
   try{
@@ -1681,13 +1738,12 @@ async function submitToAI(){
   }catch(err){
     console.error(err);
     score=0; wordResults=s.words.map(w=>({word:w,status:'bad'}));
-    feedbackText='API 錯誤：'+err.message; heardText='';
+    feedbackText=t('apiError')+err.message; heardText='';
   }
 
   const prev=bestScores[current];
   if(prev===undefined||score>prev) bestScores[current]=score;
   scores[current]=bestScores[current];
-  // Save immediately so progress isn't lost if user closes app
   saveCurrentProgress();
 
   document.getElementById('transcript-row').innerHTML=`
@@ -1700,18 +1756,18 @@ async function submitToAI(){
     </div>`;
 
   document.getElementById('ai-loading').style.display='none';
-  document.getElementById('result-card').style.display='block';
 
   const passed = score >= PASS_SCORE;
   const nextBtn = document.getElementById('next-btn');
   nextBtn.disabled = !passed;
   nextBtn.style.opacity = passed ? '1' : '0.4';
   nextBtn.title = passed ? '' : t('scoreLocked', PASS_SCORE);
-  document.getElementById('retry-btn').disabled=false;
 
   showResult(score, wordResults, feedbackText, prev);
   const isLast = current === getLangSet().sentences.length-1;
   document.getElementById('next-label').textContent = isLast ? t('finalBtn') : t('nextBtn');
+  // Show result modal
+  document.getElementById('result-section').style.display='flex';
 }
 
 let myAudio = null;
@@ -1914,27 +1970,23 @@ async function scoreWithAzure(targetSentence, words, wavBlob, lang){
 async function scoreAudio(targetSentence, words, blob, lang){
   if(azureKey){
     try {
-      document.getElementById('ai-loading-text').textContent =
-        (lang==='zh'?'轉換音頻格式中…':lang==='ja'?'音声を変換中…':'Converting audio…');
+      document.getElementById('ai-loading-text').textContent = t('converting');
       const wavBlob = await blobToWavPCM(blob);
-      document.getElementById('ai-loading-text').textContent =
-        (lang==='zh'?'Azure 分析發音中…':lang==='ja'?'Azure が発音を分析中…':'Azure analysing pronunciation…');
+      document.getElementById('ai-loading-text').textContent = t('azureAnalysing');
       const result = await scoreWithAzure(targetSentence, words, wavBlob, lang);
       console.log('✅ Azure PA success:', result);
       return result;
     } catch(e) {
       console.error('❌ Azure PA failed:', e.message);
-      // Show error to user so they can debug
-      document.getElementById('ai-loading-text').textContent = '⚠️ Azure 錯誤，改用 Gemini… (' + e.message.slice(0,60) + ')';
-      await new Promise(r=>setTimeout(r,2000)); // show error for 2s before fallback
+      document.getElementById('ai-loading-text').textContent = t('azureError', e.message.slice(0,60));
+      await new Promise(r=>setTimeout(r,2000));
     }
   }
   // Gemini fallback
   if(!geminiKey) throw new Error('No API key configured');
   const base64 = await blobToBase64(blob);
   const mimeType = (blob.type.split(';')[0]||'audio/mp4');
-  document.getElementById('ai-loading-text').textContent =
-    (lang==='zh'?'Gemini 分析中…':lang==='ja'?'Gemini が分析中…':'Gemini analysing…');
+  document.getElementById('ai-loading-text').textContent = t('geminiAnalysing');
   return await scoreWithGemini(targetSentence, words, base64, mimeType, lang);
 }
 
@@ -1956,38 +2008,51 @@ function fallbackScore(original, transcript){
 }
 
 function showResult(score, wordResults, feedbackText, prevScore){
-  let bg,color,grade;
-  if(score>=85){bg='var(--green-bg)';color='var(--green-text)';grade=t('scoreGood')+' '+score;}
-  else if(score>=65){bg='var(--amber-bg)';color='var(--amber-text)';grade=t('scoreFine')+' '+score;}
-  else if(score>=40){bg='var(--amber-bg)';color='var(--amber-text)';grade=t('scoreOk')+' '+score;}
-  else{bg='var(--red-bg)';color='var(--red-text)';grade=t('scoreLow')+' '+score;}
-  const badge=document.getElementById('score-badge');
-  badge.style.background=bg; badge.style.color=color; badge.textContent=score;
-  document.getElementById('score-grade').textContent=grade;
-  let subText=`${score} / 100`;
-  if(prevScore!==undefined){
-    const diff=score-prevScore;
-    if(diff>0) subText+=` 🎉 +${diff}`;
-    else if(diff<0) subText+=` ↓ ${Math.abs(diff)}`;
-    else subText+=' ＝';
+  let color, grade;
+  if(score>=85){ color='var(--green-text)'; grade=t('scoreGood'); }
+  else if(score>=65){ color='var(--amber-text)'; grade=t('scoreFine'); }
+  else if(score>=40){ color='var(--amber-text)'; grade=t('scoreOk'); }
+  else{ color='var(--red-text)'; grade=t('scoreLow'); }
+
+  // Animate SVG ring: circumference = 2π*52 ≈ 326.7
+  const arc = document.getElementById('score-ring-arc');
+  if(arc){
+    arc.style.stroke = color;
+    arc.style.transition = 'stroke-dashoffset .6s ease, stroke .3s';
+    arc.setAttribute('stroke-dashoffset', String(326.7 * (1 - score/100)));
   }
-  // Show lock hint if below pass score
+
+  const badge = document.getElementById('score-badge');
+  badge.textContent = score;
+  badge.style.color = color;
+  document.getElementById('score-grade').textContent = grade;
+  document.getElementById('score-grade').style.color = color;
+
+  let subText = `${score} / 100`;
+  if(prevScore !== undefined){
+    const diff = score - prevScore;
+    if(diff > 0) subText += ` 🎉 +${diff}`;
+    else if(diff < 0) subText += ` ↓ ${Math.abs(diff)}`;
+    else subText += ' ＝';
+  }
   if(score < PASS_SCORE) subText += '　⚠ '+t('scoreLocked', PASS_SCORE);
-  document.getElementById('score-sub').textContent=subText;
-  const row=document.getElementById('words-row');
-  row.innerHTML='';
+  document.getElementById('score-sub').textContent = subText;
+
+  const row = document.getElementById('words-row');
+  row.innerHTML = '';
   (wordResults||[]).forEach(({word,status})=>{
-    const chip=document.createElement('span');
-    chip.className=`word-chip chip-${status||'ok'}`;
-    chip.textContent=word;
+    const chip = document.createElement('span');
+    chip.className = `word-chip chip-${status||'ok'}`;
+    chip.textContent = word;
     row.appendChild(chip);
   });
-  document.getElementById('feedback-text').textContent=feedbackText||'';
+  document.getElementById('feedback-text').textContent = feedbackText||'';
 }
 
 function retryRecord(){
   document.getElementById('result-section').style.display='none';
   document.getElementById('preview-section').style.display='none';
+  document.getElementById('footer-play-row').style.display='flex';
   document.getElementById('rec-area').style.display='flex';
   document.getElementById('rec-ring').style.opacity='1';
   document.getElementById('rec-ring').style.pointerEvents='auto';
